@@ -51,18 +51,22 @@ query_engine = index.as_query_engine(similarity_top_k=3)
 st.set_page_config(page_title="나만의 학습 비서", page_icon="")
 st.title("나만의 학습 비서")
 
-# [CSS 스타일 주입] '새 대화 시작하기' 버튼을 노란색으로 만들기
+# [CSS 스타일 주입] '새 대화 시작하기' 버튼 노란색 및 버튼들 수평 정렬/줄바꿈 방지 최적화
 st.markdown("""
     <style>
-    /* Streamlit의 primary 버튼 클래스를 타겟팅하여 노란색 배경으로 변경 */
+    /* 새 대화 버튼 노란색 스타일 */
     div.stButton > button[kind="primary"] {
-        background-color: #242424 !important;
-        color: #ffffff !important;
+        background-color: #FFD400 !important;
+        color: #000000 !important;
         border: none !important;
     }
     div.stButton > button[kind="primary"]:hover {
         background-color: #E6BF00 !important;
         color: #000000 !important;
+    }
+    /* 채팅 말풍선 내부 버튼들이 줄바꿈되지 않고 나란히 배치되도록 설정 */
+    [data-testid="stHorizontalBlock"] {
+        align-items: center;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -82,7 +86,6 @@ if "current_chat_id" not in st.session_state or st.session_state.current_chat_id
 with st.sidebar:
     st.markdown("### 지식 RAG 비서")
     
-    # 노란색으로 스타일링될 새 대화 버튼 (type="primary" 활용)
     if st.button("새 대화 시작하기", type="primary"):
         new_chat_id = str(uuid.uuid4())
         st.session_state.chat_sessions[new_chat_id] = {"title": "새 대화", "messages": []}
@@ -120,10 +123,11 @@ with st.sidebar:
 
 current_messages = st.session_state.chat_sessions[st.session_state.current_chat_id]["messages"]
 
-# 대화 기록 출력
+# 대화 기록 출력 (고정/삭제 버튼 줄바꿈 없이 나란히 배치)
 for idx, message in enumerate(current_messages):
     with st.chat_message(message["role"]):
-        col1, col2, col3 = st.columns([0.8, 0.1, 0.1])
+        # 내용 영역(0.7), 고정 버튼(0.15), 삭제 버튼(0.15) 비율로 한 줄 정렬
+        col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
         
         with col1:
             st.markdown(message["content"])
