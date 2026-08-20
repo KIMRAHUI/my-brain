@@ -50,7 +50,7 @@ query_engine = index.as_query_engine(similarity_top_k=3)
 # 3. Streamlit UI 설정 (모바일 최적화 레이아웃 적용)
 st.set_page_config(page_title="나만의 학습 비서", page_icon="", layout="centered")
 
-# [CSS 스타일 주입] 보더선, 여백, 버튼 줄바꿈 방지 완벽 커스텀
+# [CSS 스타일 주입] 보더선 여백 제거 및 버튼 그룹화 정렬 커스텀
 st.markdown("""
     <style>
     div.stButton > button[kind="primary"] {
@@ -69,37 +69,33 @@ st.markdown("""
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    /* 컨테이너(카드) 내부 패딩 및 보더선 잘림 방지 */
+    /* 컨테이너(카드) 보더선 위아래 여백 및 패딩 최소화 */
     div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding-top: 0.8rem !important;
-        padding-bottom: 0.6rem !important;
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.4rem !important;
         padding-left: 0.8rem !important;
         padding-right: 0.8rem !important;
         border-radius: 8px !important;
     }
-    /* Q. 개체 밑과 내부 요소들의 불필요한 여백 대폭 축소 (반절 이상 절감) */
+    /* 카드 내부 요소들의 마진을 바짝 붙임 */
     div[data-testid="stVerticalBlockBorderWrapper"] div.element-container {
-        margin-bottom: -0.8rem !important;
+        margin-bottom: -0.6rem !important;
     }
     div[data-testid="stVerticalBlockBorderWrapper"] hr {
-        margin-top: 0.4rem !important;
-        margin-bottom: 0.4rem !important;
+        margin-top: 0.3rem !important;
+        margin-bottom: 0.3rem !important;
     }
-    /* 고정/삭제 버튼 영역 간격을 극도로 좁히고 줄바꿈 절대 방지 */
+    /* 고정/삭제 버튼 그룹 영역 (우측 정렬 및 줄바꿈 절대 방지) */
     [data-testid="stHorizontalBlock"] {
-        gap: 0.2rem !important;
+        gap: 0.4rem !important;
         align-items: center !important;
     }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-        width: auto !important;
-        flex: 1 !important;
-    }
-    /* 버튼 내부 텍스트 줄바꿈 방지 및 패딩 조정 */
+    /* 버튼 내부 텍스트 줄바꿈 방지 */
     .stButton > button {
         white-space: nowrap !important;
-        padding-left: 0.4rem !important;
-        padding-right: 0.4rem !important;
-        width: 100% !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+        min-height: 2rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -156,7 +152,7 @@ with st.sidebar:
 current_qa_pairs = st.session_state.chat_sessions[st.session_state.current_chat_id]["qa_pairs"]
 
 # -------------------------------------------------------------
-# [Q&A 카드 단위 렌더링 및 일괄 고정/삭제 처리]
+# [Q&A 카드 단위 렌더링 및 고정/삭제 버튼 그룹화 처리]
 # -------------------------------------------------------------
 for idx, qa in enumerate(current_qa_pairs):
     with st.container(border=True):
@@ -164,16 +160,16 @@ for idx, qa in enumerate(current_qa_pairs):
         st.markdown("---")
         st.markdown(qa['answer'])
         
-        # 하단 컨트롤 영역 (고정 및 삭제 버튼 나란히 밀착 정렬)
-        b_col1, b_col2, b_col3 = st.columns([0.6, 0.2, 0.2])
-        with b_col2:
+        # 하단 컨트롤 영역: 빈 공간(왼쪽)을 넓게 두고, 고정/삭제 버튼을 하나의 그룹으로 우측에 묶어서 배치
+        b_col_space, b_col_pin, b_col_del = st.columns([0.6, 0.2, 0.2])
+        with b_col_pin:
             is_pinned = qa.get("pinned", False)
             pin_label = "해제" if is_pinned else "고정"
-            if st.button(pin_label, key=f"pin_{st.session_state.current_chat_id}_{idx}"):
+            if st.button(pin_label, key=f"pin_{st.session_state.current_chat_id}_{idx}", use_container_width=True):
                 current_qa_pairs[idx]["pinned"] = not is_pinned
                 st.rerun()
-        with b_col3:
-            if st.button("삭제", key=f"del_{st.session_state.current_chat_id}_{idx}"):
+        with b_col_del:
+            if st.button("삭제", key=f"del_{st.session_state.current_chat_id}_{idx}", use_container_width=True):
                 del current_qa_pairs[idx]
                 st.rerun()
 
