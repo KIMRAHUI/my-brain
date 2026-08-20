@@ -1,5 +1,6 @@
 import os
 import shutil
+import uuid
 import streamlit as st
 from llama_index.core import (
     VectorStoreIndex,
@@ -50,75 +51,98 @@ query_engine = index.as_query_engine()
 st.set_page_config(page_title="나만의 학습 비서", page_icon="📚")
 st.title("📚 나만의 학습 비서")
 
-# 세션 상태 초기화 (대화 기록 기억용)
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# -------------------------------------------------------------
+# [멀티 챗 세션 관리 구조 초기화]
+# -------------------------------------------------------------
+if "chat_sessions" not in st.session_state:
+    # 최초 접속 시 기본 채팅방 하나 생성
+    first_chat_id = str(uuid.uuid4())
+    st.session_state.chat_sessions = {
+        first_chat_id: {"title": "새 대화", "messages": []}
+    }
+    st.session_state.current_chat_id = first_chat_id
 
-# 사이드바 구성
+# 현재 선택된 채팅방 ID 안전 장치
+if "current_chat_id" not in st.session_state or st.session_state.current_chat_id not in st.session_state.chat_sessions:
+    st.session_state.current_chat_id = list(st.session_state.chat_sessions.keys())[0]
+
+# 5. 사이드바 구성 (채팅방 목록 및 관리)
 with st.sidebar:
-    st.markdown("### ℹ️ 안내")
-    st.write("노션에 정리한 학습 노트를 기반으로 질문에 답해드려요.")
+    st.markdown("### 🤖 지식 RAG 비서")
     
     # ➕ 새 대화 시작하기 버튼
     if st.button("➕ 새 대화 시작하기", type="primary"):
-        st.session_state.messages = []
+        new_chat_id = str(uuid.uuid4())
+        st.session_state.chat_sessions[new_chat_id] = {"title": "새 대화", "messages": []}
+        st.session_state.current_chat_id = new_chat_id
         st.rerun()
 
     st.markdown("---")
-    st.subheader("⚙️ 대화 관리")
-    if st.button("🗑️ 전체 대화 일괄 삭제"):
-        st.session_state.messages = []
-        st.rerun()
+    st.subheader("💬 대화 기록 목록")
+    
+    # 사이드바에 기존 대화 방 목록들을 버튼 형태로 출력
+    chat_ids = list(st.session_state.chat_sessions.keys())
+    for c_id in chat_ids:
+        chat_title = st.session_state.chat_sessions[c_id]["title"]
+        # 현재 활성화된 방과 그렇지 않은 방의 버튼 스타일 구분
+        is_active = (c_id == st.session_state.current_chat_id)
+        btn_label = f"📍 {chat_title}" if is_active else f"💬 {chat_title}"
         
-    # 인덱스 새로고침 버튼
+        col_s1, col_s2 = st.columns([0.8, 0.2])
+        with col_s1:
+            if st.button(btn_label, key=f"select_{c_id}"):
+                st.session_state.current_chat_id = c_id
+                st.rerun()
+        with col_s2:
+            # 방 삭제 버튼 (최소 1개는 남아있도록 방어 코드 추가)
+            if len(st.session_state.chat_sessions) > 1:
+                if st.button("🗑️", key=f"del_chat_{c_id}", help="이 대화방 삭제"):
+                    del st.session_state.chat_sessions[c_id]
+                    st.session_state.current_chat_id = list(st.session_state.chat_sessions.keys())[0]
+                    st.rerun()
+
+    st.markdown("---")
+    st.subheader("⚙️ 시스템 관리")
     if st.button("🔄 문서 인덱스 새로고침"):
         if os.path.exists(PERSIST_DIR):
             shutil.rmtree(PERSIST_DIR)
         st.cache_resource.clear()
         st.rerun()
-        
-    st.markdown("---")
-    st.subheader("📌 고정된 핵심 노트")
-    # 고정된(pinned=True) 메시지만 필터링해서 보여주기
-    pinned_messages = [m for m in st.session_state.messages if m.get("pinned", False)]
-    
-    if not pinned_messages:
-        st.info("고정된 대화가 없습니다. 대화 옆의 📌 버튼을 눌러보세요!")
-    else:
-        for p_idx, p_msg in enumerate(pinned_messages):
-            with st.container(border=True):
-                role_icon = "👤" if p_msg["role"] == "user" else "🤖"
-                st.caption(f"{role_icon} {p_msg['role'].upper()}")
-                st.write(p_msg["content"][:50] + "..." if len(p_msg["content"]) > 50 else p_msg["content"])
 
-# 5. 기존 대화 기록 화면 출력 (개별 삭제 및 고정 버튼 포함)
-for idx, message in enumerate(st.session_state.messages):
+# 6. 현재 선택된 채팅방의 메시지 불러오기
+current_messages = st.session_state.chat_sessions[st.session_state.current_chat_id]["messages"]
+
+# 7. 현재 채팅방의 대화 기록 화면 출력 (개별 삭제 및 고정 버튼 포함)
+for idx, message in enumerate(current_messages):
     with st.chat_message(message["role"]):
-        # 레이아웃 나누기: 내용 영역(0.8), 고정 버튼(0.1), 삭제 버튼(0.1)
         col1, col2, col3 = st.columns([0.8, 0.1, 0.1])
         
         with col1:
             st.markdown(message["content"])
             
         with col2:
-            # 고정 상태에 따른 아이콘 변경 (고정됨: 📌, 해제: 📍)
             is_pinned = message.get("pinned", False)
             pin_icon = "📌" if is_pinned else "📍"
-            if st.button(pin_icon, key=f"pin_{idx}", help="이 대화 고정/해제"):
-                st.session_state.messages[idx]["pinned"] = not is_pinned
+            if st.button(pin_icon, key=f"pin_{st.session_state.current_chat_id}_{idx}", help="이 대화 고정/해제"):
+                current_messages[idx]["pinned"] = not is_pinned
                 st.rerun()
                 
         with col3:
-            # 개별 삭제 버튼
-            if st.button("🗑️", key=f"del_{idx}", help="이 대화만 삭제"):
-                del st.session_state.messages[idx]
+            if st.button("🗑️", key=f"del_{st.session_state.current_chat_id}_{idx}", help="이 대화만 삭제"):
+                del current_messages[idx]
                 st.rerun()
 
-# 6. 사용자의 입력 받기 (하단 고정 채팅창)
+# 8. 사용자의 입력 받기 (하단 고정 채팅창)
 if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어보세요!"):
     
+    # 첫 질문인 경우, 첫 번째 질문 내용을 해당 채팅방의 제목(Title)으로 자동 설정
+    if len(current_messages) == 0:
+        # 제목이 너무 길면 15글자로 자르기
+        short_title = user_query[:15] + "..." if len(user_query) > 15 else user_query
+        st.session_state.chat_sessions[st.session_state.current_chat_id]["title"] = short_title
+
     # 1. 사용자 질문 저장 및 표시
-    st.session_state.messages.append({"role": "user", "content": user_query, "pinned": False})
+    current_messages.append({"role": "user", "content": user_query, "pinned": False})
     with st.chat_message("user"):
         st.markdown(user_query)
 
@@ -128,5 +152,5 @@ if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어�
             response = str(query_engine.query(user_query))
         st.markdown(response)
         
-    st.session_state.messages.append({"role": "assistant", "content": response, "pinned": False})
+    current_messages.append({"role": "assistant", "content": response, "pinned": False})
     st.rerun()
