@@ -11,14 +11,15 @@ from llama_index.core import (
 )
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.llms.gemini import Gemini
-from llama_index.embeddings.gemini import GeminiEmbedding
+# ✅ [핵심 수정] 에러가 나던 옛날 경로 대신 LlamaIndex 표준 구글 임베딩 모듈 사용
+from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
 
 # 0. API 키 설정
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# 1. LLM 및 임베딩 설정 (가장 가볍고 안정적인 구글 공식 조합)
+# 1. LLM 및 임베딩 설정 (횟수 제한 없는 gemini-1.5-flash 및 구글 표준 임베딩)
 Settings.llm = Gemini(model="gemini-1.5-flash")
-Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004")
+Settings.embed_model = GoogleGenAIEmbedding(model_name="models/text-embedding-004")
 
 # 마크다운 헤더 파서
 Settings.node_parser = MarkdownNodeParser()
@@ -47,7 +48,7 @@ with st.spinner("지식 베이스 엔진 로딩 중..."):
 
 query_engine = index.as_query_engine(similarity_top_k=3)
 
-# 3. Streamlit UI 설정 (모바일 최적화 레이아웃)
+# 3. Streamlit UI 설정 (모바일 최적화 레이아웃 적용)
 st.set_page_config(page_title="나만의 학습 비서", page_icon="", layout="centered")
 st.title("나만의 학습 비서")
 
