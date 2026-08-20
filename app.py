@@ -50,10 +50,9 @@ query_engine = index.as_query_engine(similarity_top_k=3)
 # 3. Streamlit UI 설정 (모바일 최적화 레이아웃 적용)
 st.set_page_config(page_title="나만의 학습 비서", page_icon="", layout="centered")
 
-# [CSS 스타일 주입] 여백 축소 및 카드 디자인 커스텀
+# [CSS 스타일 주입] 보더선, 여백, 버튼 줄바꿈 방지 완벽 커스텀
 st.markdown("""
     <style>
-    /* 새 대화 버튼 노란색 스타일 */
     div.stButton > button[kind="primary"] {
         background-color: #242424 !important;
         color: #eeeeee !important;
@@ -70,17 +69,37 @@ st.markdown("""
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    /* 카드(container) 내부 여백 및 하위 마크다운 요소 간격 줄이기 */
+    /* 컨테이너(카드) 내부 패딩 및 보더선 잘림 방지 */
     div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
+        padding-top: 0.8rem !important;
+        padding-bottom: 0.6rem !important;
+        padding-left: 0.8rem !important;
+        padding-right: 0.8rem !important;
+        border-radius: 8px !important;
     }
+    /* Q. 개체 밑과 내부 요소들의 불필요한 여백 대폭 축소 (반절 이상 절감) */
     div[data-testid="stVerticalBlockBorderWrapper"] div.element-container {
-        margin-bottom: -0.5rem !important;
+        margin-bottom: -0.8rem !important;
     }
-    /* 고정/삭제 버튼 영역 및 여백 타이트하게 조정 */
-    .stHorizontalBlock {
+    div[data-testid="stVerticalBlockBorderWrapper"] hr {
+        margin-top: 0.4rem !important;
+        margin-bottom: 0.4rem !important;
+    }
+    /* 고정/삭제 버튼 영역 간격을 극도로 좁히고 줄바꿈 절대 방지 */
+    [data-testid="stHorizontalBlock"] {
         gap: 0.2rem !important;
+        align-items: center !important;
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        width: auto !important;
+        flex: 1 !important;
+    }
+    /* 버튼 내부 텍스트 줄바꿈 방지 및 패딩 조정 */
+    .stButton > button {
+        white-space: nowrap !important;
+        padding-left: 0.4rem !important;
+        padding-right: 0.4rem !important;
+        width: 100% !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -112,14 +131,10 @@ with st.sidebar:
     chat_ids = list(st.session_state.chat_sessions.keys())
     for c_id in chat_ids:
         chat_title = st.session_state.chat_sessions[c_id]["title"]
-        is_active = (c_id == st.session_state.current_chat_id)
-        
-        # 활성 상태일 때 대괄호([ ])를 빼고 텍스트만 표시하도록 수정
-        btn_label = f"{chat_title}"
         
         col_s1, col_s2 = st.columns([0.8, 0.2])
         with col_s1:
-            if st.button(btn_label, key=f"select_{c_id}"):
+            if st.button(chat_title, key=f"select_{c_id}"):
                 st.session_state.current_chat_id = c_id
                 st.rerun()
         with col_s2:
@@ -149,7 +164,7 @@ for idx, qa in enumerate(current_qa_pairs):
         st.markdown("---")
         st.markdown(qa['answer'])
         
-        # 하단 컨트롤 영역 (고정 및 삭제 버튼 간격 밀착)
+        # 하단 컨트롤 영역 (고정 및 삭제 버튼 나란히 밀착 정렬)
         b_col1, b_col2, b_col3 = st.columns([0.6, 0.2, 0.2])
         with b_col2:
             is_pinned = qa.get("pinned", False)
