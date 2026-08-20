@@ -50,7 +50,7 @@ query_engine = index.as_query_engine(similarity_top_k=3)
 # 3. Streamlit UI 설정 (모바일 최적화 레이아웃 적용)
 st.set_page_config(page_title="나만의 학습 비서", page_icon="", layout="centered")
 
-# [CSS 스타일 주입] 보더선 여백 제거 및 버튼 그룹화 정렬 커스텀
+# [CSS 스타일 주입] 보더선 위아래 여백 완전 제거 및 버튼 그룹화 정렬 커스텀
 st.markdown("""
     <style>
     div.stButton > button[kind="primary"] {
@@ -69,33 +69,38 @@ st.markdown("""
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    /* 컨테이너(카드) 보더선 위아래 여백 및 패딩 최소화 */
+    /* 컨테이너(카드) 보더선 위아래 내부 패딩을 초밀착형으로 최소화 */
     div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.4rem !important;
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.3rem !important;
         padding-left: 0.8rem !important;
         padding-right: 0.8rem !important;
-        border-radius: 8px !important;
+        border-radius: 6px !important;
+    }
+    /* 컨테이너 자체의 상하 마진(외부 여백)을 줄여 위아래 공간을 없앰 */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        margin-top: -0.5rem !important;
+        margin-bottom: -0.5rem !important;
     }
     /* 카드 내부 요소들의 마진을 바짝 붙임 */
     div[data-testid="stVerticalBlockBorderWrapper"] div.element-container {
         margin-bottom: -0.6rem !important;
     }
     div[data-testid="stVerticalBlockBorderWrapper"] hr {
-        margin-top: 0.3rem !important;
-        margin-bottom: 0.3rem !important;
+        margin-top: 0.2rem !important;
+        margin-bottom: 0.2rem !important;
     }
     /* 고정/삭제 버튼 그룹 영역 (우측 정렬 및 줄바꿈 절대 방지) */
     [data-testid="stHorizontalBlock"] {
-        gap: 0.4rem !important;
+        gap: 0.3rem !important;
         align-items: center !important;
     }
-    /* 버튼 내부 텍스트 줄바꿈 방지 */
+    /* 버튼 내부 텍스트 줄바꿈 방지 및 높이 맞춤 */
     .stButton > button {
         white-space: nowrap !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
-        min-height: 2rem !important;
+        padding-left: 0.4rem !important;
+        padding-right: 0.4rem !important;
+        min-height: 1.8rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -160,8 +165,8 @@ for idx, qa in enumerate(current_qa_pairs):
         st.markdown("---")
         st.markdown(qa['answer'])
         
-        # 하단 컨트롤 영역: 빈 공간(왼쪽)을 넓게 두고, 고정/삭제 버튼을 하나의 그룹으로 우측에 묶어서 배치
-        b_col_space, b_col_pin, b_col_del = st.columns([0.6, 0.2, 0.2])
+        # 하단 컨트롤 영역: 빈 공간(왼쪽)을 두고, 고정/삭제 버튼을 하나의 그룹 박스로 우측에 묶어서 배치
+        b_col_space, b_col_pin, b_col_del = st.columns([0.5, 0.25, 0.25])
         with b_col_pin:
             is_pinned = qa.get("pinned", False)
             pin_label = "해제" if is_pinned else "고정"
