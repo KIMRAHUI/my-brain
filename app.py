@@ -14,8 +14,8 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
 # 1. Gemini를 LLM/임베딩 모델로 명시 지정
-Settings.llm = Gemini(model="models/gemini-1.5-flash")
-Settings.embed_model = GeminiEmbedding()
+Settings.llm = Gemini(model="models/gemini-2.5-flash")
+Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004")
 
 PERSIST_DIR = "./storage"
 DATA_DIR = "./notion"  # Notion-GitHub-Sync 액션의 subdir 저장 경로에 맞춤
