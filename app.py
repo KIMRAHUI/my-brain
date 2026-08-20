@@ -54,10 +54,9 @@ st.title("나만의 학습 비서")
 # [CSS 스타일 주입] '새 대화 시작하기' 버튼 노란색 및 버튼들 수평 정렬/줄바꿈 방지 최적화
 st.markdown("""
     <style>
-    /* 새 대화 버튼 노란색 스타일 */
     div.stButton > button[kind="primary"] {
-        background-color: #FFD400 !important;
-        color: #000000 !important;
+        background-color: #242424 !important;
+        color: #eeeeee !important;
         border: none !important;
     }
     div.stButton > button[kind="primary"]:hover {
