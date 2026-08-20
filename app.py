@@ -339,7 +339,22 @@ with st.sidebar:
                 if st.button(
                     "X", key=f"del_chat_{c_id}", help="이 대화방 삭제"
                 ):
-                    db_delete_session(c_id)  # Supabase에서도 삭제 (연쇄 삭제)
+                    try:
+                        result = (
+                            supabase.table("chat_sessions")
+                            .delete()
+                            .eq("id", c_id)
+                            .execute()
+                        )
+                        st.write("삭제 응답:", result.data)  # 디버그용: 실제 지워진 행 확인
+                        if not result.data:
+                            st.error(
+                                "DB에서 일치하는 행을 찾지 못해 삭제되지 않았습니다. "
+                                f"c_id={c_id}"
+                            )
+                    except Exception as e:
+                        st.error(f"삭제 중 오류 발생: {e}")
+
                     del st.session_state.chat_sessions[c_id]
 
                     st.session_state.current_chat_id = (
