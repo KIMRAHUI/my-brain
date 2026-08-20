@@ -275,23 +275,21 @@ if "chat_sessions" not in st.session_state:
     with st.spinner("이전 대화 기록 불러오는 중..."):
         loaded_sessions = db_load_all_sessions()
 
+    st.session_state.chat_sessions = loaded_sessions
+
     if loaded_sessions:
-        st.session_state.chat_sessions = loaded_sessions
         st.session_state.current_chat_id = list(loaded_sessions.keys())[0]
     else:
-        first_chat_id = str(uuid.uuid4())
-        db_create_session(first_chat_id, "새 대화")
-
-        st.session_state.chat_sessions = {
-            first_chat_id: {"title": "새 대화", "qa_pairs": []}
-        }
-        st.session_state.current_chat_id = first_chat_id
+        st.session_state.current_chat_id = None
 
 
 if (
-    "current_chat_id" not in st.session_state
-    or st.session_state.current_chat_id
-    not in st.session_state.chat_sessions
+    st.session_state.chat_sessions
+    and (
+        "current_chat_id" not in st.session_state
+        or st.session_state.current_chat_id
+        not in st.session_state.chat_sessions
+    )
 ):
     st.session_state.current_chat_id = (
         list(st.session_state.chat_sessions.keys())[0]
@@ -341,19 +339,12 @@ with st.sidebar:
                 db_delete_session(c_id)  # Supabase에서도 삭제 (연쇄 삭제)
                 del st.session_state.chat_sessions[c_id]
 
-                if not st.session_state.chat_sessions:
-                    # 마지막 대화방까지 지웠다면 새 빈 대화방을 자동 생성
-                    new_chat_id = str(uuid.uuid4())
-                    db_create_session(new_chat_id, "새 대화")
-                    st.session_state.chat_sessions[new_chat_id] = {
-                        "title": "새 대화",
-                        "qa_pairs": [],
-                    }
-                    st.session_state.current_chat_id = new_chat_id
-                else:
+                if st.session_state.chat_sessions:
                     st.session_state.current_chat_id = (
                         list(st.session_state.chat_sessions.keys())[0]
                     )
+                else:
+                    st.session_state.current_chat_id = None
 
                 st.rerun()
 
@@ -389,8 +380,12 @@ with st.sidebar:
 
 
 # -------------------------------------------------------------
-# 8. 현재 채팅
+# 8. 현재 채팅 (대화방이 하나도 없을 수 있음)
 # -------------------------------------------------------------
+
+if not st.session_state.chat_sessions:
+    st.info("현재 대화방이 없습니다. 사이드바에서 '새 대화 시작하기'를 눌러 시작하세요.")
+    st.stop()
 
 current_qa_pairs = st.session_state.chat_sessions[
     st.session_state.current_chat_id
