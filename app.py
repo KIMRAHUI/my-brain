@@ -17,7 +17,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
 # 1. LLM 및 임베딩 설정
-Settings.llm = Gemini(model="models/gemini-3.6-flash")
+Settings.llm = Gemini(model="models/gemini-1.5-flash")
 Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 # 마크다운 헤더 파서
