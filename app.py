@@ -11,14 +11,14 @@ from llama_index.core import (
 )
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.llms.gemini import Gemini
-from llama_index.embeddings.gemini import GeminiEmbedding
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 # 0. API 키 설정
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# 1. LLM 및 임베딩 설정 (가장 안정적이고 검증된 공식 조합)
-Settings.llm = Gemini(model="gemini-1.5-flash")
-Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004")
+# 1. LLM 및 임베딩 설정
+Settings.llm = Gemini(model="models/gemini-3.6-flash")
+Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 # 마크다운 헤더 파서
 Settings.node_parser = MarkdownNodeParser()
@@ -49,9 +49,8 @@ query_engine = index.as_query_engine(similarity_top_k=3)
 
 # 3. Streamlit UI 설정 (모바일 최적화 레이아웃 적용)
 st.set_page_config(page_title="나만의 학습 비서", page_icon="", layout="centered")
-st.title("나만의 학습 비서")
 
-# [CSS 스타일 주입] 보더선 위아래 여백 최소화 및 버튼 정렬 스타일
+# [CSS 스타일 주입] 보더선 위아래 여백 완전 제거 및 버튼 그룹화 정렬 커스텀
 st.markdown("""
     <style>
     div.stButton > button[kind="primary"] {
@@ -63,16 +62,23 @@ st.markdown("""
         background-color: #E6BF00 !important;
         color: #000000 !important;
     }
+    /* 모바일 환경에서 패딩 최적화 */
     .block-container {
         padding-top: 1.5rem;
         padding-bottom: 3rem;
         padding-left: 1rem;
         padding-right: 1rem;
     }
+    /* 컨테이너(카드) 보더선 위아래 내부 패딩을 초밀착형으로 최소화 */
+    div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {
+        padding:none;
+    }
+    /* 컨테이너 자체의 상하 마진(외부 여백)을 줄여 위아래 공간을 없앰 */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         margin-top: -0.5rem !important;
         margin-bottom: -0.5rem !important;
     }
+    /* 카드 내부 요소들의 마진을 바짝 붙임 */
     div[data-testid="stVerticalBlockBorderWrapper"] div.element-container {
         margin-bottom: -0.6rem !important;
     }
@@ -80,10 +86,12 @@ st.markdown("""
         margin-top: 0.2rem !important;
         margin-bottom: 0.2rem !important;
     }
+    /* 고정/삭제 버튼 그룹 영역 (우측 정렬 및 줄바꿈 절대 방지) */
     [data-testid="stHorizontalBlock"] {
         gap: 0.3rem !important;
         align-items: center !important;
     }
+    /* 버튼 내부 텍스트 줄바꿈 방지 및 높이 맞춤 */
     .stButton > button {
         white-space: nowrap !important;
         padding-left: 0.4rem !important;
@@ -120,12 +128,10 @@ with st.sidebar:
     chat_ids = list(st.session_state.chat_sessions.keys())
     for c_id in chat_ids:
         chat_title = st.session_state.chat_sessions[c_id]["title"]
-        is_active = (c_id == st.session_state.current_chat_id)
-        btn_label = f"[{chat_title}]" if is_active else f"{chat_title}"
         
         col_s1, col_s2 = st.columns([0.8, 0.2])
         with col_s1:
-            if st.button(btn_label, key=f"select_{c_id}"):
+            if st.button(chat_title, key=f"select_{c_id}"):
                 st.session_state.current_chat_id = c_id
                 st.rerun()
         with col_s2:
@@ -136,23 +142,6 @@ with st.sidebar:
                     st.rerun()
 
     st.markdown("---")
-    st.subheader("고정된 핵심 노트")
-    
-    all_pinned_items = []
-    for s_id, s_data in st.session_state.chat_sessions.items():
-        for q_item in s_data["qa_pairs"]:
-            if q_item.get("pinned", False):
-                all_pinned_items.append(q_item)
-
-    if not all_pinned_items:
-        st.caption("고정된 대화가 없습니다.")
-    else:
-        for p_idx, p_qa in enumerate(all_pinned_items):
-            with st.container(border=True):
-                st.caption(f"Q. {p_qa['question']}")
-                st.write(p_qa['answer'][:40] + "..." if len(p_qa['answer']) > 40 else p_qa['answer'])
-
-    st.markdown("---")
     st.subheader("시스템 관리")
     if st.button("문서 인덱스 새로고침"):
         if os.path.exists(PERSIST_DIR):
@@ -160,15 +149,19 @@ with st.sidebar:
         st.cache_resource.clear()
         st.rerun()
 
+# 현재 세션의 Q&A 카드 목록 가져오기
 current_qa_pairs = st.session_state.chat_sessions[st.session_state.current_chat_id]["qa_pairs"]
 
-# Q&A 카드 렌더링
+# -------------------------------------------------------------
+# [Q&A 카드 단위 렌더링 및 고정/삭제 버튼 그룹화 처리]
+# -------------------------------------------------------------
 for idx, qa in enumerate(current_qa_pairs):
     with st.container(border=True):
         st.markdown(f"**Q. {qa['question']}**")
         st.markdown("---")
         st.markdown(qa['answer'])
         
+        # 하단 컨트롤 영역: 빈 공간(왼쪽)을 두고, 고정/삭제 버튼을 하나의 그룹 박스로 우측에 묶어서 배치
         b_col_space, b_col_pin, b_col_del = st.columns([0.5, 0.25, 0.25])
         with b_col_pin:
             is_pinned = qa.get("pinned", False)
@@ -181,7 +174,7 @@ for idx, qa in enumerate(current_qa_pairs):
                 del current_qa_pairs[idx]
                 st.rerun()
 
-# 사용자 입력
+# 사용자 입력 (하단 고정 채팅창)
 if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어보세요!"):
     if len(current_qa_pairs) == 0:
         short_title = user_query[:15] + "..." if len(user_query) > 15 else user_query
