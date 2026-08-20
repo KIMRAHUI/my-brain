@@ -11,15 +11,13 @@ from llama_index.core import (
 )
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.llms.gemini import Gemini
-# 속도 개선을 위한 로컬 가벼운 임베딩 모델 도입
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 # 0. API 키 설정
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# 1. LLM은 Gemini, 임베딩은 초고속 로컬 경량 모델(HuggingFace) 사용
+# 1. LLM 및 임베딩 설정
 Settings.llm = Gemini(model="models/gemini-3.6-flash")
-# 네트워크 통신이 없는 로컬 임베딩을 사용하여 검색 속도 극대화
 Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 # 마크다운 헤더 파서
@@ -28,7 +26,7 @@ Settings.node_parser = MarkdownNodeParser()
 PERSIST_DIR = "./storage"
 DATA_DIR = "./notion"
 
-# 2. [속도 최적화 핵심] 인덱스 빌드 및 로딩 전체 캐싱
+# 2. 인덱스 빌드 및 로딩 캐싱
 @st.cache_resource
 def load_or_build_index():
     if os.path.exists(PERSIST_DIR):
@@ -44,15 +42,30 @@ def load_or_build_index():
         index.storage_context.persist(persist_dir=PERSIST_DIR)
     return index
 
-# 앱 실행 시점의 병목을 줄이기 위해 스피너와 함께 로드
 with st.spinner("지식 베이스 엔진 로딩 중... (잠시만 기다려주세요!)"):
     index = load_or_build_index()
 
-query_engine = index.as_query_engine(similarity_top_k=3) # 상위 3개만 빠르게 검색
+query_engine = index.as_query_engine(similarity_top_k=3)
 
 # 3. Streamlit UI 설정
-st.set_page_config(page_title="나만의 학습 비서", page_icon="📚")
-st.title("📚 나만의 학습 비서")
+st.set_page_config(page_title="나만의 학습 비서", page_icon="")
+st.title("나만의 학습 비서")
+
+# [CSS 스타일 주입] '새 대화 시작하기' 버튼을 노란색으로 만들기
+st.markdown("""
+    <style>
+    /* Streamlit의 primary 버튼 클래스를 타겟팅하여 노란색 배경으로 변경 */
+    div.stButton > button[kind="primary"] {
+        background-color: #242424 !important;
+        color: #ffffff !important;
+        border: none !important;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #E6BF00 !important;
+        color: #000000 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # 멀티 챗 세션 구조 초기화
 if "chat_sessions" not in st.session_state:
@@ -67,22 +80,23 @@ if "current_chat_id" not in st.session_state or st.session_state.current_chat_id
 
 # 사이드바 구성
 with st.sidebar:
-    st.markdown("### 🤖 지식 RAG 비서")
+    st.markdown("### 지식 RAG 비서")
     
-    if st.button("➕ 새 대화 시작하기", type="primary"):
+    # 노란색으로 스타일링될 새 대화 버튼 (type="primary" 활용)
+    if st.button("새 대화 시작하기", type="primary"):
         new_chat_id = str(uuid.uuid4())
         st.session_state.chat_sessions[new_chat_id] = {"title": "새 대화", "messages": []}
         st.session_state.current_chat_id = new_chat_id
         st.rerun()
 
     st.markdown("---")
-    st.subheader("💬 대화 기록 목록")
+    st.subheader("대화 기록 목록")
     
     chat_ids = list(st.session_state.chat_sessions.keys())
     for c_id in chat_ids:
         chat_title = st.session_state.chat_sessions[c_id]["title"]
         is_active = (c_id == st.session_state.current_chat_id)
-        btn_label = f"📍 {chat_title}" if is_active else f"💬 {chat_title}"
+        btn_label = f"[{chat_title}]" if is_active else f"{chat_title}"
         
         col_s1, col_s2 = st.columns([0.8, 0.2])
         with col_s1:
@@ -91,14 +105,14 @@ with st.sidebar:
                 st.rerun()
         with col_s2:
             if len(st.session_state.chat_sessions) > 1:
-                if st.button("🗑️", key=f"del_chat_{c_id}", help="이 대화방 삭제"):
+                if st.button("X", key=f"del_chat_{c_id}", help="이 대화방 삭제"):
                     del st.session_state.chat_sessions[c_id]
                     st.session_state.current_chat_id = list(st.session_state.chat_sessions.keys())[0]
                     st.rerun()
 
     st.markdown("---")
-    st.subheader("⚙️ 시스템 관리")
-    if st.button("🔄 문서 인덱스 새로고침"):
+    st.subheader("시스템 관리")
+    if st.button("문서 인덱스 새로고침"):
         if os.path.exists(PERSIST_DIR):
             shutil.rmtree(PERSIST_DIR)
         st.cache_resource.clear()
@@ -116,13 +130,13 @@ for idx, message in enumerate(current_messages):
             
         with col2:
             is_pinned = message.get("pinned", False)
-            pin_icon = "📌" if is_pinned else "📍"
-            if st.button(pin_icon, key=f"pin_{st.session_state.current_chat_id}_{idx}", help="이 대화 고정/해제"):
+            pin_label = "해제" if is_pinned else "고정"
+            if st.button(pin_label, key=f"pin_{st.session_state.current_chat_id}_{idx}", help="이 대화 고정/해제"):
                 current_messages[idx]["pinned"] = not is_pinned
                 st.rerun()
                 
         with col3:
-            if st.button("🗑️", key=f"del_{st.session_state.current_chat_id}_{idx}", help="이 대화만 삭제"):
+            if st.button("삭제", key=f"del_{st.session_state.current_chat_id}_{idx}", help="이 대화만 삭제"):
                 del current_messages[idx]
                 st.rerun()
 
