@@ -10,6 +10,7 @@ from llama_index.core import (
     StorageContext,
     load_index_from_storage,
     Settings,
+    PromptTemplate,
 )
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.llms.google_genai import GoogleGenAI
@@ -79,8 +80,32 @@ with st.spinner("지식 베이스 엔진 로딩 중..."):
     index = load_or_build_index()
 
 
+# -------------------------------------------------------------
+# [핵심 개선] 노션에 없어도 일반 지식/코딩 능력으로 유연하게 대답하는 하이브리드 프롬프트
+# -------------------------------------------------------------
+qa_prompt = PromptTemplate(
+    """
+    아래는 사용자의 학습 노트에서 검색된 참고 자료입니다.
+
+    ---------------------
+    {context_str}
+    ---------------------
+
+    사용자 질문:
+    {query_str}
+
+    답변 규칙:
+    1. 참고 자료에 관련 내용이 있으면 그것을 우선 활용하여 답변하세요.
+    2. 참고 자료에 답이 없거나 부족하더라도 질문에 답할 수 있다면 일반적인 지식과 추론을 활용해서 완성도 높은 답변을 생성하세요.
+    3. 참고 자료에 없는 내용을 참고 자료에 있다고 억지로 주장하지 마세요.
+    4. 사용자가 예제 코드나 구현을 요청하면 실제로 실행 가능한 예제를 명확하게 작성해 주세요.
+    5. 필요한 경우 참고 자료의 내용과 일반 지식을 자연스럽게 조합해서 설명해 주세요.
+    """
+)
+
 query_engine = index.as_query_engine(
-    similarity_top_k=3
+    similarity_top_k=3,
+    text_qa_template=qa_prompt,
 )
 
 
