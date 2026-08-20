@@ -1,4 +1,5 @@
 name: sync-notion-to-github
+
 on:
   schedule:
     - cron: '0 0 * * *'   # 매일 00:00 UTC 자동 동기화
@@ -10,7 +11,7 @@ jobs:
   discover:
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # <-- 추가: git push 권한 부여
+      contents: write        # git push 권한 부여
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -34,13 +35,17 @@ jobs:
           git config user.email "bot@example.com"
           git add notion/
           git commit -m "chore: add new notion page stubs" || echo "No new stubs to commit"
+          
+          # [충돌 방지 핵심 안전장치] 원격 저장소에 선행 커밋이 있을 경우 충돌 없이 병합 후 푸시
+          git pull origin main --rebase || echo "No remote changes to pull"
+          
           git push
 
   sync:
     needs: discover
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # <-- 추가: Notion-GitHub-Sync 액션도 커밋/푸시하므로 필요
+      contents: write        # Notion-GitHub-Sync 액션도 커밋/푸시하므로 필요
     steps:
       - name: Checkout repo (latest main, including new stubs)
         uses: actions/checkout@v4
