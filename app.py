@@ -7,6 +7,7 @@ from llama_index.core import (
     load_index_from_storage,
     Settings,
 )
+from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.llms.gemini import Gemini
 from llama_index.embeddings.gemini import GeminiEmbedding
 
@@ -16,6 +17,11 @@ os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 # 1. Gemini를 LLM/임베딩 모델로 명시 지정
 Settings.llm = Gemini(model="models/gemini-2.5-flash")
 Settings.embed_model = GeminiEmbedding(model_name="models/gemini-embedding-001")
+
+# 2. 마크다운 헤더 구조 기반 파서 사용 (nltk 불용어 사전이 필요한 기본
+#    SentenceSplitter를 피해서, Streamlit Cloud 샌드박스의 하드링크 차단
+#    보안 정책과 충돌하는 문제를 우회. 헤더 단위 청킹이라 검색 품질도 더 좋음)
+Settings.node_parser = MarkdownNodeParser()
 
 PERSIST_DIR = "./storage"
 DATA_DIR = "./notion"  # Notion-GitHub-Sync 액션의 subdir 저장 경로에 맞춤
