@@ -2,7 +2,7 @@ name: sync-notion-to-github
 on:
   schedule:
     - cron: '0 0 * * *'   # 매일 00:00 UTC 자동 동기화
-  workflow_dispatch:        # 수동 실행 버튼
+  workflow_dispatch:        # Actions 탭에서 수동 실행 버튼
   push:
     branches: [main]
 
@@ -10,32 +10,41 @@ jobs:
   discover:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install deps
+
+      - name: Install dependencies
         run: pip install notion-client
-      - name: Auto-generate empty md files for new Notion pages
+
+      - name: Generate empty md stubs for new Notion pages
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/generate_md_stubs.py
+
       - name: Commit new stub files
         run: |
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
           git add notion/
-          git commit -m "chore: add new notion page stubs" || echo "No new stubs"
+          git commit -m "chore: add new notion page stubs" || echo "No new stubs to commit"
           git push
 
   sync:
     needs: discover
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo (latest main, including new stubs)
+        uses: actions/checkout@v4
         with:
           ref: main
-      - uses: YouXam/Notion-GitHub-Sync@v2
+
+      - name: Sync Notion content into stub files
+        uses: YouXam/Notion-GitHub-Sync@v2
         with:
           notion_token: ${{ secrets.NOTION_TOKEN }}
-          subdir: true   # notion/{article_id}/ 형태로 저장
+          subdir: true   # notion/{page_id}/index.md 형태로 저장
