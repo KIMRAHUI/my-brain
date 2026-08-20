@@ -4,7 +4,7 @@ title: 내 비서 만들기
 date: '2026-08-19 23:45:00.000'
 from_notion: https://app.notion.com/p/3c177fa64f7f80faa37efe1da23324eb
 author: rahui kim
-last_edited_time: '2026-08-20 00:12:00.000'
+last_edited_time: '2026-08-20 00:37:00.000'
 ---
 # Zero-Cost 개인 학습 RAG 비서 구축 계획서 (v2)
 
