@@ -4,8 +4,10 @@ title: 내 비서 만들기
 date: '2026-08-19 23:45:00.000'
 from_notion: https://app.notion.com/p/3c177fa64f7f80faa37efe1da23324eb
 author: rahui kim
-last_edited_time: '2026-08-20 00:37:00.000'
+last_edited_time: '2026-08-20 01:24:00.000'
 ---
+[//]: # (child_page is not supported)
+
 # Zero-Cost 개인 학습 RAG 비서 구축 계획서 (v2)
 
 ## 1. 프로젝트 개요
@@ -312,29 +314,5 @@ GOOGLE_API_KEY = "여기에_발급받은_키"
 
 ---
 
-## 6. 체크리스트
-
-- [ ] GitHub Private Repo 생성
-
-- [ ] Notion Integration Token 발급, 동기화할 노션 페이지에 Integration Connect
-
-- [ ] `NOTION_TOKEN` 시크릿 등록
-
-- [ ] `scripts/generate_md_stubs.py` 추가 및 로컬 테스트 (`pip install notion-client` 후 실행)
-
-- [ ] `.github/workflows/sync.yml` 추가 (discover → sync 2단계 잡)
-
-- [ ] 워크플로 수동 실행(`workflow_dispatch`)으로 스텁 생성 및 콘텐츠 채움 확인
-
-- [ ] Gemini API Key 발급
-
-- [ ] `app.py`, `requirements.txt` 작성 및 로컬 테스트
-
-- [ ] Streamlit Cloud 배포 및 `GOOGLE_API_KEY` 시크릿 등록
-
-- [ ] 모바일 홈 화면 추가 및 접속 테스트
-
----
-
-[//]: # (child_page is not supported)
+<br/>
 
