@@ -49,9 +49,8 @@ query_engine = index.as_query_engine(similarity_top_k=3)
 
 # 3. Streamlit UI 설정 (모바일 최적화 레이아웃 적용)
 st.set_page_config(page_title="나만의 학습 비서", page_icon="", layout="centered")
-st.title("나만의 학습 비서")
 
-# [CSS 스타일 주입] 모바일 화면 대응 및 카드 디자인 커스텀
+# [CSS 스타일 주입] 여백 축소 및 카드 디자인 커스텀
 st.markdown("""
     <style>
     /* 새 대화 버튼 노란색 스타일 */
@@ -66,10 +65,22 @@ st.markdown("""
     }
     /* 모바일 환경에서 패딩 최적화 */
     .block-container {
-        padding-top: 2rem;
+        padding-top: 1.5rem;
         padding-bottom: 3rem;
         padding-left: 1rem;
         padding-right: 1rem;
+    }
+    /* 카드(container) 내부 여백 및 하위 마크다운 요소 간격 줄이기 */
+    div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] div.element-container {
+        margin-bottom: -0.5rem !important;
+    }
+    /* 고정/삭제 버튼 영역 및 여백 타이트하게 조정 */
+    .stHorizontalBlock {
+        gap: 0.2rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -78,7 +89,7 @@ st.markdown("""
 if "chat_sessions" not in st.session_state:
     first_chat_id = str(uuid.uuid4())
     st.session_state.chat_sessions = {
-        first_chat_id: {"title": "새 대화", "qa_pairs": []}  # messages -> qa_pairs 구조로 변경 (질문/답변 쌍 관리)
+        first_chat_id: {"title": "새 대화", "qa_pairs": []}
     }
     st.session_state.current_chat_id = first_chat_id
 
@@ -102,7 +113,9 @@ with st.sidebar:
     for c_id in chat_ids:
         chat_title = st.session_state.chat_sessions[c_id]["title"]
         is_active = (c_id == st.session_state.current_chat_id)
-        btn_label = f"[{chat_title}]" if is_active else f"{chat_title}"
+        
+        # 활성 상태일 때 대괄호([ ])를 빼고 텍스트만 표시하도록 수정
+        btn_label = f"{chat_title}"
         
         col_s1, col_s2 = st.columns([0.8, 0.2])
         with col_s1:
@@ -131,15 +144,12 @@ current_qa_pairs = st.session_state.chat_sessions[st.session_state.current_chat_
 # [Q&A 카드 단위 렌더링 및 일괄 고정/삭제 처리]
 # -------------------------------------------------------------
 for idx, qa in enumerate(current_qa_pairs):
-    # 각 Q&A 쌍을 하나의 시각적 컨테이너(카드)로 묶음
     with st.container(border=True):
-        # 질문 출력
         st.markdown(f"**Q. {qa['question']}**")
         st.markdown("---")
-        # 답변 출력
         st.markdown(qa['answer'])
         
-        # 하단 컨트롤 영역 (고정 및 삭제 버튼을 한 줄로 배치)
+        # 하단 컨트롤 영역 (고정 및 삭제 버튼 간격 밀착)
         b_col1, b_col2, b_col3 = st.columns([0.6, 0.2, 0.2])
         with b_col2:
             is_pinned = qa.get("pinned", False)
@@ -158,11 +168,9 @@ if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어�
         short_title = user_query[:15] + "..." if len(user_query) > 15 else user_query
         st.session_state.chat_sessions[st.session_state.current_chat_id]["title"] = short_title
 
-    # 답변 생성
     with st.spinner("답변 생성 중..."):
         response = str(query_engine.query(user_query))
 
-    # 하나의 카드 단위(질문 + 답변 + 고정상태)로 묶어서 저장
     current_qa_pairs.append({
         "question": user_query,
         "answer": response,
