@@ -5,3 +5,4 @@ llama-index-embeddings-huggingface
 google-generativeai
 torch
 transformers
+torchvision
