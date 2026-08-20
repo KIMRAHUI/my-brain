@@ -71,11 +71,7 @@ st.markdown("""
     }
     /* 컨테이너(카드) 보더선 위아래 내부 패딩을 초밀착형으로 최소화 */
     div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding-top: 0.3rem !important;
-        padding-bottom: 0.3rem !important;
-        padding-left: 0.8rem !important;
-        padding-right: 0.8rem !important;
-        border-radius: 6px !important;
+        padding:none;
     }
     /* 컨테이너 자체의 상하 마진(외부 여백)을 줄여 위아래 공간을 없앰 */
     div[data-testid="stVerticalBlockBorderWrapper"] {
