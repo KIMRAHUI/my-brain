@@ -11,14 +11,14 @@ from llama_index.core import (
 )
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.llms.gemini import Gemini
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.embeddings.gemini import GeminiEmbedding
 
 # 0. API 키 설정
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# 1. LLM 및 임베딩 설정
-Settings.llm = Gemini(model="models/gemini-1.5-flash")
-Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+# 1. LLM 및 임베딩 설정 (가장 안정적인 공식 모델 사용)
+Settings.llm = Gemini(model="gemini-1.5-flash")
+Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004")
 
 # 마크다운 헤더 파서
 Settings.node_parser = MarkdownNodeParser()
@@ -49,8 +49,9 @@ query_engine = index.as_query_engine(similarity_top_k=3)
 
 # 3. Streamlit UI 설정 (모바일 최적화 레이아웃 적용)
 st.set_page_config(page_title="나만의 학습 비서", page_icon="", layout="centered")
+st.title("나만의 학습 비서")
 
-# [CSS 스타일 주입] 보더선 위아래 여백 완전 제거 및 버튼 그룹화 정렬 커스텀
+# [CSS 스타일 주입] 보더선 위아래 여백 최소화 및 버튼 정렬 스타일
 st.markdown("""
     <style>
     div.stButton > button[kind="primary"] {
@@ -69,16 +70,11 @@ st.markdown("""
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    /* 컨테이너(카드) 보더선 위아래 내부 패딩을 초밀착형으로 최소화 */
-    div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding:none;
-    }
-    /* 컨테이너 자체의 상하 마진(외부 여백)을 줄여 위아래 공간을 없앰 */
+    /* 컨테이너(카드) 상하 마진 및 패딩 최소화 */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         margin-top: -0.5rem !important;
         margin-bottom: -0.5rem !important;
     }
-    /* 카드 내부 요소들의 마진을 바짝 붙임 */
     div[data-testid="stVerticalBlockBorderWrapper"] div.element-container {
         margin-bottom: -0.6rem !important;
     }
@@ -91,7 +87,6 @@ st.markdown("""
         gap: 0.3rem !important;
         align-items: center !important;
     }
-    /* 버튼 내부 텍스트 줄바꿈 방지 및 높이 맞춤 */
     .stButton > button {
         white-space: nowrap !important;
         padding-left: 0.4rem !important;
@@ -128,10 +123,12 @@ with st.sidebar:
     chat_ids = list(st.session_state.chat_sessions.keys())
     for c_id in chat_ids:
         chat_title = st.session_state.chat_sessions[c_id]["title"]
+        is_active = (c_id == st.session_state.current_chat_id)
+        btn_label = f"[{chat_title}]" if is_active else f"{chat_title}"
         
         col_s1, col_s2 = st.columns([0.8, 0.2])
         with col_s1:
-            if st.button(chat_title, key=f"select_{c_id}"):
+            if st.button(btn_label, key=f"select_{c_id}"):
                 st.session_state.current_chat_id = c_id
                 st.rerun()
         with col_s2:
@@ -140,6 +137,24 @@ with st.sidebar:
                     del st.session_state.chat_sessions[c_id]
                     st.session_state.current_chat_id = list(st.session_state.chat_sessions.keys())[0]
                     st.rerun()
+
+    st.markdown("---")
+    st.subheader("고정된 핵심 노트")
+    
+    # 모든 채팅방에서 고정(pinned=True)된 카드들을 수집하여 사이드바에 요약 표시
+    all_pinned_items = []
+    for s_id, s_data in st.session_state.chat_sessions.items():
+        for q_item in s_data["qa_pairs"]:
+            if q_item.get("pinned", False):
+                all_pinned_items.append(q_item)
+
+    if not all_pinned_items:
+        st.caption("고정된 대화가 없습니다. 카드에서 고정을 눌러보세요.")
+    else:
+        for p_idx, p_qa in enumerate(all_pinned_items):
+            with st.container(border=True):
+                st.caption(f"Q. {p_qa['question']}")
+                st.write(p_qa['answer'][:40] + "..." if len(p_qa['answer']) > 40 else p_qa['answer'])
 
     st.markdown("---")
     st.subheader("시스템 관리")
@@ -161,7 +176,7 @@ for idx, qa in enumerate(current_qa_pairs):
         st.markdown("---")
         st.markdown(qa['answer'])
         
-        # 하단 컨트롤 영역: 빈 공간(왼쪽)을 두고, 고정/삭제 버튼을 하나의 그룹 박스로 우측에 묶어서 배치
+        # 하단 컨트롤 영역: 빈 공간(왼쪽)을 두고, 고정/삭제 버튼을 우측에 나란히 배치
         b_col_space, b_col_pin, b_col_del = st.columns([0.5, 0.25, 0.25])
         with b_col_pin:
             is_pinned = qa.get("pinned", False)
