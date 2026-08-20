@@ -59,17 +59,22 @@ with st.sidebar:
     st.markdown("### ℹ️ 안내")
     st.write("노션에 정리한 학습 노트를 기반으로 질문에 답해드려요.")
     
-    # 인덱스 새로고침 버튼
-    if st.button("🔄 인덱스 새로고침"):
-        if os.path.exists(PERSIST_DIR):
-            shutil.rmtree(PERSIST_DIR)
-        st.cache_resource.clear()
+    # ➕ 새 대화 시작하기 버튼
+    if st.button("➕ 새 대화 시작하기", type="primary"):
+        st.session_state.messages = []
         st.rerun()
-        
+
     st.markdown("---")
     st.subheader("⚙️ 대화 관리")
     if st.button("🗑️ 전체 대화 일괄 삭제"):
         st.session_state.messages = []
+        st.rerun()
+        
+    # 인덱스 새로고침 버튼
+    if st.button("🔄 문서 인덱스 새로고침"):
+        if os.path.exists(PERSIST_DIR):
+            shutil.rmtree(PERSIST_DIR)
+        st.cache_resource.clear()
         st.rerun()
         
     st.markdown("---")
