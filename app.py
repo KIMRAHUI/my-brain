@@ -16,7 +16,7 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 # 0. API 키 설정
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# 1. LLM 및 임베딩 설정 (가장 안정적인 공식 모델 사용)
+# 1. 아까 잘 되던 원본 방식 그대로 안정적인 모델 세팅
 Settings.llm = Gemini(model="gemini-1.5-flash")
 Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004")
 
@@ -47,7 +47,7 @@ with st.spinner("지식 베이스 엔진 로딩 중..."):
 
 query_engine = index.as_query_engine(similarity_top_k=3)
 
-# 3. Streamlit UI 설정 (모바일 최적화 레이아웃 적용)
+# 3. Streamlit UI 설정 (모바일 최적화 레이아웃)
 st.set_page_config(page_title="나만의 학습 비서", page_icon="", layout="centered")
 st.title("나만의 학습 비서")
 
@@ -63,14 +63,12 @@ st.markdown("""
         background-color: #E6BF00 !important;
         color: #000000 !important;
     }
-    /* 모바일 환경에서 패딩 최적화 */
     .block-container {
         padding-top: 1.5rem;
         padding-bottom: 3rem;
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    /* 컨테이너(카드) 상하 마진 및 패딩 최소화 */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         margin-top: -0.5rem !important;
         margin-bottom: -0.5rem !important;
@@ -82,7 +80,6 @@ st.markdown("""
         margin-top: 0.2rem !important;
         margin-bottom: 0.2rem !important;
     }
-    /* 고정/삭제 버튼 그룹 영역 (우측 정렬 및 줄바꿈 절대 방지) */
     [data-testid="stHorizontalBlock"] {
         gap: 0.3rem !important;
         align-items: center !important;
@@ -141,7 +138,6 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("고정된 핵심 노트")
     
-    # 모든 채팅방에서 고정(pinned=True)된 카드들을 수집하여 사이드바에 요약 표시
     all_pinned_items = []
     for s_id, s_data in st.session_state.chat_sessions.items():
         for q_item in s_data["qa_pairs"]:
@@ -149,7 +145,7 @@ with st.sidebar:
                 all_pinned_items.append(q_item)
 
     if not all_pinned_items:
-        st.caption("고정된 대화가 없습니다. 카드에서 고정을 눌러보세요.")
+        st.caption("고정된 대화가 없습니다.")
     else:
         for p_idx, p_qa in enumerate(all_pinned_items):
             with st.container(border=True):
@@ -164,19 +160,15 @@ with st.sidebar:
         st.cache_resource.clear()
         st.rerun()
 
-# 현재 세션의 Q&A 카드 목록 가져오기
 current_qa_pairs = st.session_state.chat_sessions[st.session_state.current_chat_id]["qa_pairs"]
 
-# -------------------------------------------------------------
-# [Q&A 카드 단위 렌더링 및 고정/삭제 버튼 그룹화 처리]
-# -------------------------------------------------------------
+# Q&A 카드 렌더링
 for idx, qa in enumerate(current_qa_pairs):
     with st.container(border=True):
         st.markdown(f"**Q. {qa['question']}**")
         st.markdown("---")
         st.markdown(qa['answer'])
         
-        # 하단 컨트롤 영역: 빈 공간(왼쪽)을 두고, 고정/삭제 버튼을 우측에 나란히 배치
         b_col_space, b_col_pin, b_col_del = st.columns([0.5, 0.25, 0.25])
         with b_col_pin:
             is_pinned = qa.get("pinned", False)
@@ -189,7 +181,7 @@ for idx, qa in enumerate(current_qa_pairs):
                 del current_qa_pairs[idx]
                 st.rerun()
 
-# 사용자 입력 (하단 고정 채팅창)
+# 사용자 입력
 if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어보세요!"):
     if len(current_qa_pairs) == 0:
         short_title = user_query[:15] + "..." if len(user_query) > 15 else user_query
