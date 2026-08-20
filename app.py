@@ -335,32 +335,27 @@ with st.sidebar:
                 st.rerun()
 
         with col_s2:
-            if len(st.session_state.chat_sessions) > 1:
-                if st.button(
-                    "X", key=f"del_chat_{c_id}", help="이 대화방 삭제"
-                ):
-                    try:
-                        result = (
-                            supabase.table("chat_sessions")
-                            .delete()
-                            .eq("id", c_id)
-                            .execute()
-                        )
-                        st.write("삭제 응답:", result.data)  # 디버그용: 실제 지워진 행 확인
-                        if not result.data:
-                            st.error(
-                                "DB에서 일치하는 행을 찾지 못해 삭제되지 않았습니다. "
-                                f"c_id={c_id}"
-                            )
-                    except Exception as e:
-                        st.error(f"삭제 중 오류 발생: {e}")
+            if st.button(
+                "X", key=f"del_chat_{c_id}", help="이 대화방 삭제"
+            ):
+                db_delete_session(c_id)  # Supabase에서도 삭제 (연쇄 삭제)
+                del st.session_state.chat_sessions[c_id]
 
-                    del st.session_state.chat_sessions[c_id]
-
+                if not st.session_state.chat_sessions:
+                    # 마지막 대화방까지 지웠다면 새 빈 대화방을 자동 생성
+                    new_chat_id = str(uuid.uuid4())
+                    db_create_session(new_chat_id, "새 대화")
+                    st.session_state.chat_sessions[new_chat_id] = {
+                        "title": "새 대화",
+                        "qa_pairs": [],
+                    }
+                    st.session_state.current_chat_id = new_chat_id
+                else:
                     st.session_state.current_chat_id = (
                         list(st.session_state.chat_sessions.keys())[0]
                     )
-                    st.rerun()
+
+                st.rerun()
 
     st.markdown("---")
     st.subheader("고정된 핵심 노트")
