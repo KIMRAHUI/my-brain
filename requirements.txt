@@ -1,8 +1,12 @@
 streamlit
 llama-index-core
 llama-index-llms-gemini
+llama-index-embeddings-google-genai
+google-generativeai
 llama-index-embeddings-huggingface
 google-generativeai
 torch
 transformers
 torchvision
+
+
