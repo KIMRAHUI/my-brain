@@ -16,7 +16,7 @@ from llama_index.embeddings.gemini import GeminiEmbedding
 # 0. API 키 설정
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# 1. 아까 잘 되던 원본 방식 그대로 안정적인 모델 세팅
+# 1. LLM 및 임베딩 설정 (가장 가볍고 안정적인 구글 공식 조합)
 Settings.llm = Gemini(model="gemini-1.5-flash")
 Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004")
 
