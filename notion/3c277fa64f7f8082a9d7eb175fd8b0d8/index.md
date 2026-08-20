@@ -4,7 +4,7 @@ title: understanding_and_types_of_data
 date: '2026-08-20 00:43:00.000'
 from_notion: https://app.notion.com/p/understanding_and_types_of_data-3c277fa64f7f8082a9d7eb175fd8b0d8
 author: rahui kim
-last_edited_time: '2026-08-20 04:59:00.000'
+last_edited_time: '2026-08-20 08:31:00.000'
 ---
 [//]: # (heading_4 is not supported)
 
