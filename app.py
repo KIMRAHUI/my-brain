@@ -11,15 +11,14 @@ from llama_index.core import (
 )
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.llms.gemini import Gemini
-# ✅ [핵심 수정] 에러가 나던 옛날 경로 대신 LlamaIndex 표준 구글 임베딩 모듈 사용
-from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
+from llama_index.embeddings.gemini import GeminiEmbedding
 
 # 0. API 키 설정
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# 1. LLM 및 임베딩 설정 (횟수 제한 없는 gemini-1.5-flash 및 구글 표준 임베딩)
+# 1. LLM 및 임베딩 설정 (가장 안정적이고 검증된 공식 조합)
 Settings.llm = Gemini(model="gemini-1.5-flash")
-Settings.embed_model = GoogleGenAIEmbedding(model_name="models/text-embedding-004")
+Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004")
 
 # 마크다운 헤더 파서
 Settings.node_parser = MarkdownNodeParser()
