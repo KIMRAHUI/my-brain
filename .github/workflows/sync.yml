@@ -9,6 +9,8 @@ on:
 jobs:
   discover:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # <-- 추가: git push 권한 부여
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -37,6 +39,8 @@ jobs:
   sync:
     needs: discover
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # <-- 추가: Notion-GitHub-Sync 액션도 커밋/푸시하므로 필요
     steps:
       - name: Checkout repo (latest main, including new stubs)
         uses: actions/checkout@v4
