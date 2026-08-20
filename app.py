@@ -42,18 +42,19 @@ def load_or_build_index():
         index.storage_context.persist(persist_dir=PERSIST_DIR)
     return index
 
-with st.spinner("지식 베이스 엔진 로딩 중... (잠시만 기다려주세요!)"):
+with st.spinner("지식 베이스 엔진 로딩 중..."):
     index = load_or_build_index()
 
 query_engine = index.as_query_engine(similarity_top_k=3)
 
-# 3. Streamlit UI 설정
-st.set_page_config(page_title="나만의 학습 비서", page_icon="")
+# 3. Streamlit UI 설정 (모바일 최적화 레이아웃 적용)
+st.set_page_config(page_title="나만의 학습 비서", page_icon="", layout="centered")
 st.title("나만의 학습 비서")
 
-# [CSS 스타일 주입] '새 대화 시작하기' 버튼 노란색 및 버튼들 수평 정렬/줄바꿈 방지 최적화
+# [CSS 스타일 주입] 모바일 화면 대응 및 카드 디자인 커스텀
 st.markdown("""
     <style>
+    /* 새 대화 버튼 노란색 스타일 */
     div.stButton > button[kind="primary"] {
         background-color: #242424 !important;
         color: #eeeeee !important;
@@ -63,9 +64,12 @@ st.markdown("""
         background-color: #E6BF00 !important;
         color: #000000 !important;
     }
-    /* 채팅 말풍선 내부 버튼들이 줄바꿈되지 않고 나란히 배치되도록 설정 */
-    [data-testid="stHorizontalBlock"] {
-        align-items: center;
+    /* 모바일 환경에서 패딩 최적화 */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -74,7 +78,7 @@ st.markdown("""
 if "chat_sessions" not in st.session_state:
     first_chat_id = str(uuid.uuid4())
     st.session_state.chat_sessions = {
-        first_chat_id: {"title": "새 대화", "messages": []}
+        first_chat_id: {"title": "새 대화", "qa_pairs": []}  # messages -> qa_pairs 구조로 변경 (질문/답변 쌍 관리)
     }
     st.session_state.current_chat_id = first_chat_id
 
@@ -87,7 +91,7 @@ with st.sidebar:
     
     if st.button("새 대화 시작하기", type="primary"):
         new_chat_id = str(uuid.uuid4())
-        st.session_state.chat_sessions[new_chat_id] = {"title": "새 대화", "messages": []}
+        st.session_state.chat_sessions[new_chat_id] = {"title": "새 대화", "qa_pairs": []}
         st.session_state.current_chat_id = new_chat_id
         st.rerun()
 
@@ -120,43 +124,48 @@ with st.sidebar:
         st.cache_resource.clear()
         st.rerun()
 
-current_messages = st.session_state.chat_sessions[st.session_state.current_chat_id]["messages"]
+# 현재 세션의 Q&A 카드 목록 가져오기
+current_qa_pairs = st.session_state.chat_sessions[st.session_state.current_chat_id]["qa_pairs"]
 
-# 대화 기록 출력 (고정/삭제 버튼 줄바꿈 없이 나란히 배치)
-for idx, message in enumerate(current_messages):
-    with st.chat_message(message["role"]):
-        # 내용 영역(0.7), 고정 버튼(0.15), 삭제 버튼(0.15) 비율로 한 줄 정렬
-        col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
+# -------------------------------------------------------------
+# [Q&A 카드 단위 렌더링 및 일괄 고정/삭제 처리]
+# -------------------------------------------------------------
+for idx, qa in enumerate(current_qa_pairs):
+    # 각 Q&A 쌍을 하나의 시각적 컨테이너(카드)로 묶음
+    with st.container(border=True):
+        # 질문 출력
+        st.markdown(f"**Q. {qa['question']}**")
+        st.markdown("---")
+        # 답변 출력
+        st.markdown(qa['answer'])
         
-        with col1:
-            st.markdown(message["content"])
-            
-        with col2:
-            is_pinned = message.get("pinned", False)
+        # 하단 컨트롤 영역 (고정 및 삭제 버튼을 한 줄로 배치)
+        b_col1, b_col2, b_col3 = st.columns([0.6, 0.2, 0.2])
+        with b_col2:
+            is_pinned = qa.get("pinned", False)
             pin_label = "해제" if is_pinned else "고정"
-            if st.button(pin_label, key=f"pin_{st.session_state.current_chat_id}_{idx}", help="이 대화 고정/해제"):
-                current_messages[idx]["pinned"] = not is_pinned
+            if st.button(pin_label, key=f"pin_{st.session_state.current_chat_id}_{idx}"):
+                current_qa_pairs[idx]["pinned"] = not is_pinned
                 st.rerun()
-                
-        with col3:
-            if st.button("삭제", key=f"del_{st.session_state.current_chat_id}_{idx}", help="이 대화만 삭제"):
-                del current_messages[idx]
+        with b_col3:
+            if st.button("삭제", key=f"del_{st.session_state.current_chat_id}_{idx}"):
+                del current_qa_pairs[idx]
                 st.rerun()
 
-# 사용자 입력
+# 사용자 입력 (하단 고정 채팅창)
 if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어보세요!"):
-    if len(current_messages) == 0:
+    if len(current_qa_pairs) == 0:
         short_title = user_query[:15] + "..." if len(user_query) > 15 else user_query
         st.session_state.chat_sessions[st.session_state.current_chat_id]["title"] = short_title
 
-    current_messages.append({"role": "user", "content": user_query, "pinned": False})
-    with st.chat_message("user"):
-        st.markdown(user_query)
+    # 답변 생성
+    with st.spinner("답변 생성 중..."):
+        response = str(query_engine.query(user_query))
 
-    with st.chat_message("assistant"):
-        with st.spinner("답변 생성 중..."):
-            response = str(query_engine.query(user_query))
-        st.markdown(response)
-        
-    current_messages.append({"role": "assistant", "content": response, "pinned": False})
+    # 하나의 카드 단위(질문 + 답변 + 고정상태)로 묶어서 저장
+    current_qa_pairs.append({
+        "question": user_query,
+        "answer": response,
+        "pinned": False
+    })
     st.rerun()
