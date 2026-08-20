@@ -11,14 +11,15 @@ from llama_index.core import (
 )
 from llama_index.core.node_parser import MarkdownNodeParser
 from llama_index.llms.gemini import Gemini
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+# ✅ Streamlit Cloud 서버 환경에서 에러/메모리 충돌이 없는 구글 공식 임베딩으로 안전하게 변경
+from llama_index.embeddings.gemini import GeminiEmbedding
 
 # 0. API 키 설정
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-# 1. LLM 및 임베딩 설정
-Settings.llm = Gemini(model="models/gemini-3.6-flash")
-Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+# 1. LLM 및 임베딩 설정 (가장 가볍고 횟수 제한 없는 공식 조합)
+Settings.llm = Gemini(model="models/gemini-1.5-flash")
+Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004")
 
 # 마크다운 헤더 파서
 Settings.node_parser = MarkdownNodeParser()
@@ -128,10 +129,12 @@ with st.sidebar:
     chat_ids = list(st.session_state.chat_sessions.keys())
     for c_id in chat_ids:
         chat_title = st.session_state.chat_sessions[c_id]["title"]
+        is_active = (c_id == st.session_state.current_chat_id)
+        btn_label = f"[{chat_title}]" if is_active else f"{chat_title}"
         
         col_s1, col_s2 = st.columns([0.8, 0.2])
         with col_s1:
-            if st.button(chat_title, key=f"select_{c_id}"):
+            if st.button(btn_label, key=f"select_{c_id}"):
                 st.session_state.current_chat_id = c_id
                 st.rerun()
         with col_s2:
@@ -140,6 +143,23 @@ with st.sidebar:
                     del st.session_state.chat_sessions[c_id]
                     st.session_state.current_chat_id = list(st.session_state.chat_sessions.keys())[0]
                     st.rerun()
+
+    st.markdown("---")
+    st.subheader("고정된 핵심 노트")
+    
+    all_pinned_items = []
+    for s_id, s_data in st.session_state.chat_sessions.items():
+        for q_item in s_data["qa_pairs"]:
+            if q_item.get("pinned", False):
+                all_pinned_items.append(q_item)
+
+    if not all_pinned_items:
+        st.caption("고정된 대화가 없습니다.")
+    else:
+        for p_idx, p_qa in enumerate(all_pinned_items):
+            with st.container(border=True):
+                st.caption(f"Q. {p_qa['question']}")
+                st.write(p_qa['answer'][:40] + "..." if len(p_qa['answer']) > 40 else p_qa['answer'])
 
     st.markdown("---")
     st.subheader("시스템 관리")
