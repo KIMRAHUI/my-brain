@@ -1,5 +1,7 @@
 streamlit
-llama-index
+llama-index-core
 llama-index-llms-gemini
-llama-index-embeddings-gemini
+llama-index-embeddings-huggingface
 google-generativeai
+torch
+transformers
