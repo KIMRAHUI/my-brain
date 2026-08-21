@@ -47,37 +47,87 @@ Settings.node_parser = MarkdownNodeParser()
 
 PERSIST_DIR = "./storage"
 DATA_DIR = "./notion"
+INDEX_BUCKET = "rag-index"
 
 
 # -------------------------------------------------------------
-# 2. 인덱스 빌드 / 로딩
+# 2. 인덱스 Supabase Storage 백업/복원 함수
+# -------------------------------------------------------------
+
+def download_index_from_supabase() -> bool:
+    """Supabase Storage에 저장된 인덱스 파일을 로컬 storage/로 내려받는다.
+    성공적으로 하나 이상 받았으면 True, 저장된 게 없으면 False."""
+    try:
+        files = supabase.storage.from_(INDEX_BUCKET).list()
+    except Exception:
+        return False
+
+    if not files:
+        return False
+
+    os.makedirs(PERSIST_DIR, exist_ok=True)
+    got_any = False
+    for f in files:
+        name = f["name"]
+        try:
+            data = supabase.storage.from_(INDEX_BUCKET).download(name)
+        except Exception:
+            continue
+        with open(os.path.join(PERSIST_DIR, name), "wb") as out:
+            out.write(data)
+        got_any = True
+
+    return got_any
+
+
+def upload_index_to_supabase():
+    """로컬 storage/ 안의 인덱스 파일들을 전부 Supabase Storage에 업로드(덮어쓰기)."""
+    if not os.path.exists(PERSIST_DIR):
+        return
+    for filename in os.listdir(PERSIST_DIR):
+        local_path = os.path.join(PERSIST_DIR, filename)
+        if not os.path.isfile(local_path):
+            continue
+        with open(local_path, "rb") as f:
+            supabase.storage.from_(INDEX_BUCKET).upload(
+                filename,
+                f,
+                {"content-type": "application/json", "upsert": "true"},
+            )
+
+
+# -------------------------------------------------------------
+# 3. 인덱스 빌드 / 로딩
+#    (로컬에 없으면 Supabase Storage에서 먼저 복원 시도 → 그래도 없으면
+#     새로 임베딩해서 빌드 후 Supabase Storage에 백업)
 # -------------------------------------------------------------
 
 @st.cache_resource
 def load_or_build_index():
-    if os.path.exists(PERSIST_DIR):
-        storage_context = StorageContext.from_defaults(
-            persist_dir=PERSIST_DIR
-        )
+    if not os.path.exists(PERSIST_DIR):
+        download_index_from_supabase()
 
-        index = load_index_from_storage(
-            storage_context
-        )
+    if os.path.exists(PERSIST_DIR) and os.listdir(PERSIST_DIR):
+        try:
+            storage_context = StorageContext.from_defaults(
+                persist_dir=PERSIST_DIR
+            )
+            return load_index_from_storage(storage_context)
+        except Exception:
+            # 손상되었거나 불완전하면 새로 빌드
+            shutil.rmtree(PERSIST_DIR, ignore_errors=True)
 
-    else:
-        documents = SimpleDirectoryReader(
-            DATA_DIR,
-            required_exts=[".md"],
-            recursive=True,
-        ).load_data()
+    documents = SimpleDirectoryReader(
+        DATA_DIR,
+        required_exts=[".md"],
+        recursive=True,
+    ).load_data()
 
-        index = VectorStoreIndex.from_documents(
-            documents
-        )
+    index = VectorStoreIndex.from_documents(documents)
+    index.storage_context.persist(persist_dir=PERSIST_DIR)
 
-        index.storage_context.persist(
-            persist_dir=PERSIST_DIR
-        )
+    # 새로 빌드했으니 다음 재시작을 위해 Supabase Storage에 백업
+    upload_index_to_supabase()
 
     return index
 
@@ -113,7 +163,7 @@ query_engine = index.as_query_engine(
 
 
 # -------------------------------------------------------------
-# 3. Supabase 데이터 접근 함수
+# 4. Supabase 데이터 접근 함수 (대화방/질문답변)
 # -------------------------------------------------------------
 
 def db_load_all_sessions():
@@ -195,7 +245,7 @@ def db_delete_qa(qa_db_id: str):
 
 
 # -------------------------------------------------------------
-# 4. Streamlit 설정
+# 5. Streamlit 설정
 # -------------------------------------------------------------
 
 st.set_page_config(
@@ -206,7 +256,7 @@ st.set_page_config(
 
 
 # -------------------------------------------------------------
-# 5. CSS
+# 6. CSS
 # -------------------------------------------------------------
 
 st.markdown(
@@ -268,7 +318,7 @@ st.markdown(
 
 
 # -------------------------------------------------------------
-# 6. 세션 초기화 (Supabase에서 로드, 없으면 새로 생성)
+# 7. 세션 초기화 (Supabase에서 로드, 없으면 새로 생성)
 # -------------------------------------------------------------
 
 if "chat_sessions" not in st.session_state:
@@ -297,7 +347,7 @@ if (
 
 
 # -------------------------------------------------------------
-# 7. 사이드바
+# 8. 사이드바
 # -------------------------------------------------------------
 
 with st.sidebar:
@@ -375,12 +425,20 @@ with st.sidebar:
     if st.button("문서 인덱스 새로고침"):
         if os.path.exists(PERSIST_DIR):
             shutil.rmtree(PERSIST_DIR)
+        try:
+            existing = supabase.storage.from_(INDEX_BUCKET).list()
+            if existing:
+                supabase.storage.from_(INDEX_BUCKET).remove(
+                    [f["name"] for f in existing]
+                )
+        except Exception:
+            pass
         st.cache_resource.clear()
         st.rerun()
 
 
 # -------------------------------------------------------------
-# 8. 현재 채팅 (대화방이 하나도 없을 수 있음)
+# 9. 현재 채팅 (대화방이 하나도 없을 수 있음)
 # -------------------------------------------------------------
 
 if not st.session_state.chat_sessions:
@@ -393,7 +451,7 @@ current_qa_pairs = st.session_state.chat_sessions[
 
 
 # -------------------------------------------------------------
-# 9. Q&A 카드
+# 10. Q&A 카드
 # -------------------------------------------------------------
 
 for idx, qa in enumerate(current_qa_pairs):
@@ -430,7 +488,7 @@ for idx, qa in enumerate(current_qa_pairs):
 
 
 # -------------------------------------------------------------
-# 10. 사용자 질문
+# 11. 사용자 질문
 # -------------------------------------------------------------
 
 if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어보세요!"):
