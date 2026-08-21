@@ -107,22 +107,32 @@ def load_or_build_index():
     if not os.path.exists(PERSIST_DIR):
         download_index_from_supabase()
 
-    if os.path.exists(PERSIST_DIR) and os.listdir(PERSIST_DIR):
-        try:
-            storage_context = StorageContext.from_defaults(
-                persist_dir=PERSIST_DIR
-            )
-            return load_index_from_storage(storage_context)
-        except Exception:
-            # 손상되었거나 불완전하면 새로 빌드
-            shutil.rmtree(PERSIST_DIR, ignore_errors=True)
-
     documents = SimpleDirectoryReader(
         DATA_DIR,
         required_exts=[".md"],
         recursive=True,
     ).load_data()
 
+    if os.path.exists(PERSIST_DIR) and os.listdir(PERSIST_DIR):
+        try:
+            storage_context = StorageContext.from_defaults(
+                persist_dir=PERSIST_DIR
+            )
+            index = load_index_from_storage(storage_context)
+
+            # 증분 업데이트: 이미 인덱싱된 문서는 건드리지 않고
+            # 새로 추가되었거나 내용이 바뀐 문서만 골라서 임베딩
+            refreshed_flags = index.refresh_ref_docs(documents)
+            if any(refreshed_flags):
+                index.storage_context.persist(persist_dir=PERSIST_DIR)
+                upload_index_to_supabase()
+
+            return index
+        except Exception:
+            # 손상되었거나 불완전하면 새로 빌드
+            shutil.rmtree(PERSIST_DIR, ignore_errors=True)
+
+    # 최초 빌드 (여기서만 문서 전체를 임베딩)
     index = VectorStoreIndex.from_documents(documents)
     index.storage_context.persist(persist_dir=PERSIST_DIR)
 
