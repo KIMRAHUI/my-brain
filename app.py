@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 import uuid
 
 import streamlit as st
@@ -40,6 +41,7 @@ Settings.llm = GoogleGenAI(
 
 Settings.embed_model = GoogleGenAIEmbedding(
     model_name="gemini-embedding-2",
+    embed_batch_size=5,
 )
 
 Settings.node_parser = MarkdownNodeParser()
@@ -132,18 +134,66 @@ def load_or_build_index():
             # 손상되었거나 불완전하면 새로 빌드
             shutil.rmtree(PERSIST_DIR, ignore_errors=True)
 
-    # 최초 빌드 (여기서만 문서 전체를 임베딩)
-    index = VectorStoreIndex.from_documents(documents)
-    index.storage_context.persist(persist_dir=PERSIST_DIR)
+    # 최초 빌드: 문서를 하나씩 순차적으로 삽입하면서 매번 로컬+Supabase에 저장.
+    # 중간에 할당량 초과가 나도 이미 처리된 문서는 안전하게 보존되고,
+    # 다음 재시도(또는 재시작) 때 refresh_ref_docs가 이어서 처리합니다.
+    index = VectorStoreIndex.from_documents([])
 
-    # 새로 빌드했으니 다음 재시작을 위해 Supabase Storage에 백업
-    upload_index_to_supabase()
+    total = len(documents)
+    progress_bar = st.progress(
+        0.0, text=f"0 / {total} 문서 임베딩 중..."
+    )
 
+    for i, doc in enumerate(documents):
+        for attempt in range(5):
+            try:
+                index.insert(doc)
+                break
+            except Exception as e:
+                is_quota_error = "RESOURCE_EXHAUSTED" in str(e)
+                if is_quota_error and attempt < 4:
+                    wait_seconds = 30 * (attempt + 1)
+                    progress_bar.progress(
+                        i / total if total else 0.0,
+                        text=(
+                            f"할당량 제한으로 {wait_seconds}초 대기 후 재시도 "
+                            f"({i} / {total} 완료)..."
+                        ),
+                    )
+                    time.sleep(wait_seconds)
+                    continue
+                # 재시도로도 해결 안 되면, 지금까지 처리된 것만이라도 저장 후 에러 전달
+                index.storage_context.persist(persist_dir=PERSIST_DIR)
+                upload_index_to_supabase()
+                raise
+
+        # 문서 하나 끝날 때마다 즉시 저장 (진행상황 보존)
+        index.storage_context.persist(persist_dir=PERSIST_DIR)
+        upload_index_to_supabase()
+
+        progress_bar.progress(
+            (i + 1) / total if total else 1.0,
+            text=f"{i + 1} / {total} 문서 임베딩 완료",
+        )
+
+    progress_bar.empty()
     return index
 
 
-with st.spinner("지식 베이스 엔진 로딩 중..."):
-    index = load_or_build_index()
+try:
+    with st.spinner("지식 베이스 엔진 로딩 중..."):
+        index = load_or_build_index()
+except Exception as e:
+    if "RESOURCE_EXHAUSTED" in str(e):
+        st.error(
+            "Gemini 임베딩 API 할당량을 초과했습니다.\n\n"
+            "지금까지 처리된 문서는 안전하게 저장되었으니, "
+            "잠시 후(할당량 리셋 이후) 페이지를 새로고침하면 "
+            "이어서 진행됩니다."
+        )
+    else:
+        st.error(f"인덱스 로딩 중 오류가 발생했습니다.\n\n`{e}`")
+    st.stop()
 
 
 qa_prompt = PromptTemplate(
@@ -432,19 +482,27 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("시스템 관리")
 
-    if st.button("문서 인덱스 새로고침"):
-        if os.path.exists(PERSIST_DIR):
-            shutil.rmtree(PERSIST_DIR)
-        try:
-            existing = supabase.storage.from_(INDEX_BUCKET).list()
-            if existing:
-                supabase.storage.from_(INDEX_BUCKET).remove(
-                    [f["name"] for f in existing]
-                )
-        except Exception:
-            pass
+    if st.button("새 문서 확인 및 반영"):
+        # 로컬/Supabase 백업은 그대로 두고, 캐시만 비워서
+        # load_or_build_index()가 다시 실행되며 새/변경 문서만 증분 반영합니다.
         st.cache_resource.clear()
         st.rerun()
+
+    with st.expander("⚠️ 전체 재빌드 (문제 있을 때만)"):
+        st.caption("모델을 바꿨거나 인덱스가 꼬였을 때만 사용하세요. 노션 문서 전체를 다시 임베딩해 API 할당량을 많이 씁니다.")
+        if st.button("전체 인덱스 새로 만들기", type="secondary"):
+            if os.path.exists(PERSIST_DIR):
+                shutil.rmtree(PERSIST_DIR)
+            try:
+                existing = supabase.storage.from_(INDEX_BUCKET).list()
+                if existing:
+                    supabase.storage.from_(INDEX_BUCKET).remove(
+                        [f["name"] for f in existing]
+                    )
+            except Exception:
+                pass
+            st.cache_resource.clear()
+            st.rerun()
 
 
 # -------------------------------------------------------------
