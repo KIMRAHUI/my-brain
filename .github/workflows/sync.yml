@@ -56,6 +56,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 👇 충돌을 일으키는 notion 폴더와 예전 폴더들을 완전히 강제로 삭제합니다.
+      - name: Force clean workspace
+        run: |
+          rm -rf github/ notion-sync/ notion/
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
      
       - name: Force remove legacy folders
         run: |
