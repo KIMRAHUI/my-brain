@@ -40,22 +40,3 @@ jobs:
         with:
           notion_token: ${{ secrets.NOTION_TOKEN }}
           subdir: true
-
-      - name: Commit and push
-        run: |
-          git config user.name "notion-bot"
-          git config user.email "bot@example.com"
-
-          git add .
-
-          if git diff --staged --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
-
-          git commit -m "chore: sync notion pages"
-
-          git fetch origin main
-          git rebase origin/main
-
-          git push origin main
