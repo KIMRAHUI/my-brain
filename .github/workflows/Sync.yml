@@ -1,40 +1,20 @@
 name: sync-notion-to-github
-
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-concurrency:
-  group: notion-github-sync
-  cancel-in-progress: false
+    - cron: '0 0 * * *'   # 매일 00:00 UTC 자동 동기화
+  workflow_dispatch:        # Actions 탭 수동 실행 버튼
+  push:
+    branches: [main]
 
 jobs:
-  sync-and-generate:
+  discover:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
-      # 1. 레포지토리 체크아웃
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # 2. Git 기본 설정
-      - name: Set up Git Identity
-        run: |
-          git config --global user.name 'GitHub Actions'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-      # 3. [가장 중요] 스텁을 만들기 전, 원격의 최신 내역을 먼저 완전히 동기화 (충돌 원천 차단)
-      - name: Pull latest changes first
-        run: |
-          git pull origin main --rebase || echo "No rebase needed"
-
-      # 4. 파이썬 환경 설정 및 의존성 설치
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -43,18 +23,32 @@ jobs:
       - name: Install dependencies
         run: pip install notion-client
 
-      # 5. 노션 새 페이지 스텁 생성 스크립트 실행
       - name: Generate empty md stubs for new Notion pages
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/generate_md_stubs.py
 
-      # 6. 변경된 파일들을 안전하게 커밋하고 푸시
-      - name: Commit and push changes
+      - name: Commit new stub files
         run: |
-          git add -A
-          git diff --quiet && git diff --staged --quiet || (
-            git commit -m "Auto-sync Notion pages" &&
-            git pull origin main --rebase &&
-            git push origin main
-          )
+          git config user.name "notion-bot"
+          git config user.email "bot@example.com"
+          git add notion/
+          git commit -m "chore: add new notion page stubs" || echo "No new stubs to commit"
+          git push
+
+  sync:
+    needs: discover
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo (latest main, including new stubs)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Sync Notion content into stub files
+        uses: YouXam/Notion-GitHub-Sync@v2
+        with:
+          notion_token: ${{ secrets.NOTION_TOKEN }}
+          subdir: true   # notion/{page_id}/index.md 형태로 저장
