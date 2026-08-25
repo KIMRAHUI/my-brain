@@ -45,7 +45,16 @@ jobs:
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/generate_md_stubs.py
+        
+      - name: Pull latest changes before sync
+        run: |
+          git pull origin main --rebase
 
+      - name: Sync Notion content into stub files
+        uses: YouXam/Notion-GitHub-Sync@v2
+        with:
+          notion_token: ${{ secrets.NOTION_TOKEN }}
+          subdir: true
       - name: Sync Notion content into stub files
         uses: YouXam/Notion-GitHub-Sync@v2
         with:
