@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 저장소 체크아웃 (가장 먼저 실행)
+      # 1. 저장소 체크아웃
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
@@ -29,13 +29,11 @@ jobs:
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      # 3. 골칫거리 옛날 폴더(github/, notion-sync/) 강제 삭제 및 Git 반영
-      - name: Remove legacy folders
+      # 3. 충돌을 일으키는 옛날 폴더와 로컬 잔여 파일들을 완전히 강제로 청소
+      - name: Clean workspace and remove legacy folders
         run: |
-          rm -rf github/ notion-sync/
-          git rm -rf github/ notion-sync/ || true
-          git commit -m "Remove legacy folders" || echo "No changes to commit"
-          git push origin main || true
+          rm -rf github/ notion-sync/ notion/
+          git status
 
       # 4. 파이썬 환경 설정 및 의존성 설치
       - name: Set up Python
