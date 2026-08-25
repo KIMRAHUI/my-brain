@@ -51,3 +51,17 @@ jobs:
         run: |
           git add -A
           git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync Notion pages" && git push origin main)
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+     
+      - name: Force remove legacy folders
+        run: |
+          rm -rf github/ notion-sync/
+          git rm -rf github/ notion-sync/ || true
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git commit -m "Remove legacy folders" || echo "No changes to commit"
+          git push origin main || true
