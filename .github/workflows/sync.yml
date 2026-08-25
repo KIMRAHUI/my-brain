@@ -22,6 +22,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      # [추가] Git 설정 (Actions 러너에서 푸시하기 위한 기본 설정)
+      - name: Set up Git Identity
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      # [추가] 혹시 모를 원격 변경 사항 동기화 (fetch first 방지)
+      - name: Pull latest changes
+        run: |
+          git pull origin main --rebase || echo "No rebase needed or initial pull"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
