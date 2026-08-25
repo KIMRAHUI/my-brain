@@ -17,16 +17,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. 저장소 체크아웃 (가장 먼저 실행)
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 2. Git 기본 설정
       - name: Set up Git Identity
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
+      # 3. 골칫거리 옛날 폴더(github/, notion-sync/) 강제 삭제 및 Git 반영
+      - name: Remove legacy folders
+        run: |
+          rm -rf github/ notion-sync/
+          git rm -rf github/ notion-sync/ || true
+          git commit -m "Remove legacy folders" || echo "No changes to commit"
+          git push origin main || true
+
+      # 4. 파이썬 환경 설정 및 의존성 설치
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -35,45 +46,19 @@ jobs:
       - name: Install dependencies
         run: pip install notion-client
 
-      # 1. 노션 새 페이지 스텁 생성 스크립트 실행
+      # 5. 노션 새 페이지 스텁 생성 스크립트 실행
       - name: Generate empty md stubs for new Notion pages
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/generate_md_stubs.py
 
-      # 2. 원격 저장소 최신 내용 먼저 가져오기 (충돌 방지 핵심!)
+      # 6. 푸시하기 전 원격 저장소 최신 내용 동기화 (충돌 방지)
       - name: Pull latest changes
         run: |
           git pull origin main --rebase || echo "No rebase needed"
 
-      # 3. 변경된 파일들을 깃허브에 직접 커밋하고 푸시하기
+      # 7. 변경된 파일들을 깃허브에 최종 커밋 및 푸시
       - name: Commit and push changes
         run: |
           git add -A
           git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync Notion pages" && git push origin main)
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # 👇 충돌을 일으키는 notion 폴더와 예전 폴더들을 완전히 강제로 삭제합니다.
-      - name: Force clean workspace
-        run: |
-          rm -rf github/ notion-sync/ notion/
-          git config --global user.name 'GitHub Actions'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-     
-      - name: Force remove legacy folders
-        run: |
-          rm -rf github/ notion-sync/
-          git rm -rf github/ notion-sync/ || true
-          git config --global user.name 'GitHub Actions'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git commit -m "Remove legacy folders" || echo "No changes to commit"
-          git push origin main || true
