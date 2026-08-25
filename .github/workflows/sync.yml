@@ -5,16 +5,16 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: notion-github-sync
+  cancel-in-progress: false
+
 jobs:
   sync-and-generate:
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
-    concurrency:
-      group: notion-github-sync
-      cancel-in-progress: false
 
     steps:
       - name: Checkout repo
@@ -41,7 +41,7 @@ jobs:
           notion_token: ${{ secrets.NOTION_TOKEN }}
           subdir: true
 
-      - name: Commit and push all synchronized files
+      - name: Commit and push
         run: |
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
@@ -53,7 +53,7 @@ jobs:
             exit 0
           fi
 
-          git commit -m "chore: sync notion pages and update markdown files"
+          git commit -m "chore: sync notion pages"
 
           git fetch origin main
           git rebase origin/main
