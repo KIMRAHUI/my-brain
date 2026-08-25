@@ -34,17 +34,15 @@ jobs:
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
           
-          # [핵심 안전장치 수정] 커밋(Commit) 전에 원격 저장소의 최신 내역을 안전하게 Rebase하여 충돌 원천 차단
-          git fetch origin main
-          git rebase origin/main || git rebase --abort
-          
-          # 변경된 스텁 파일 감지 및 커밋
+          # 1. 생성된 스텁 파일을 먼저 스테이징 및 로컬 커밋 (변경사항 없으면 건너뜀)
           git add notion/
           git commit -m "chore: add new notion page stubs" || echo "No new stubs to commit"
           
-          # 안전하게 푸시
-          git push
-
+          # 2. 원격 저장소의 최신 내역을 안전하게 Rebase로 가져와 병합
+          git pull --rebase origin main
+          
+          # 3. 충돌 없는 깨끗한 상태로 최종 푸시
+          git push origin main
   sync:
     needs: discover
     runs-on: ubuntu-latest
