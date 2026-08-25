@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync-and-generate:
+  sync-and-generate: 
     runs-on: ubuntu-latest
 
     steps:
