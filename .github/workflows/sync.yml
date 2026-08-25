@@ -2,22 +2,25 @@ name: sync-notion-to-github
 
 on:
   schedule:
-    - cron: '0 0 * * *'    # 매일 00:00 UTC 자동 동기화
-  workflow_dispatch:        # Actions 탭에서 수동 실행 버튼
-  push:
-    branches: [main]
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   sync-and-generate:
     runs-on: ubuntu-latest
+
     permissions:
-      contents: write        # Git 커밋 및 푸시 권한 부여
+      contents: write
+
+    concurrency:
+      group: notion-github-sync
+      cancel-in-progress: false
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0     # 전체 히스토리를 가져와 Git 충돌 방지
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -27,31 +30,32 @@ jobs:
       - name: Install dependencies
         run: pip install notion-client
 
-      # [개선 1] 원격 저장소의 최신 변경사항을 먼저 당겨와서 충돌 원천 차단
-      - name: Pull latest changes from remote
-        run: |
-          git config user.name "notion-bot"
-          git config user.email "bot@example.com"
-          git pull origin main --rebase || echo "No remote changes to pull"
-
       - name: Generate empty md stubs for new Notion pages
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/generate_md_stubs.py
 
-      # [개선 2] 스텁 파일 생성을 먼저 완벽히 끝낸 뒤, Notion-GitHub-Sync 액션을 하나의 Job 안에서 연속 실행
       - name: Sync Notion content into stub files
         uses: YouXam/Notion-GitHub-Sync@v2
         with:
           notion_token: ${{ secrets.NOTION_TOKEN }}
-          subdir: true       # notion/{page_id}/index.md 형태로 저장
+          subdir: true
 
       - name: Commit and push all synchronized files
         run: |
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
+
           git add .
-          git status
-          # 변경된 내용이 있을 때만 커밋 및 푸시 수행
-          git diff --staged --quiet || git commit -m "chore: sync notion pages and update markdown files"
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: sync notion pages and update markdown files"
+
+          git fetch origin main
+          git rebase origin/main
+
           git push origin main
