@@ -5,7 +5,6 @@ on:
     - cron: '0 0 * * *' # 매일 00:00 UTC 자동 동기화
   workflow_dispatch: # Actions 탭에서 수동 실행
 
-# 동일한 동기화 workflow가 동시에 실행되지 않도록 방지
 concurrency:
   group: notion-sync
   cancel-in-progress: false
@@ -36,7 +35,7 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/generate_md_stubs.py
 
-- name: Commit and push new stub files
+      - name: Commit and push new stub files
         run: |
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
@@ -50,21 +49,8 @@ jobs:
 
           git commit -m "chore: add new notion page stubs"
 
-          # 원격 저장소의 최신 변경 사항을 먼저 반영 (rebase)
-          git pull origin main --rebase || git pull origin HEAD --rebase
-
-          # 푸시
-          git push origin main
-
-          git commit -m "chore: add new notion page stubs"
-
-      - name: Rebase onto latest main
-        run: |
-          git fetch origin main
-          git rebase origin/main
-
-      - name: Push changes
-        run: |
+          # [핵심] 원격 저장소의 최신 내용을 먼저 병합하고 푸시합니다.
+          git pull origin main --rebase
           git push origin main
 
   sync:
