@@ -1,19 +1,27 @@
 name: sync-notion-to-github
+
 on:
   schedule:
-    - cron: '0 0 * * *'   # 매일 00:00 UTC 자동 동기화
-  workflow_dispatch:        # Actions 탭 수동 실행 버튼
-  push:
-    branches: [main]
+    - cron: '0 0 * * *' # 매일 00:00 UTC 자동 동기화
+  workflow_dispatch: # Actions 탭에서 수동 실행
+
+# 동일한 동기화 작업이 동시에 실행되지 않도록 방지
+concurrency:
+  group: notion-sync
+  cancel-in-progress: false
 
 jobs:
   discover:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -32,23 +40,42 @@ jobs:
         run: |
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
+
           git add notion/
-          git commit -m "chore: add new notion page stubs" || echo "No new stubs to commit"
-          git push
+
+          if git diff --cached --quiet; then
+            echo "No new stubs to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: add new notion page stubs"
+
+      - name: Rebase onto latest main
+        run: |
+          git fetch origin main
+          git rebase origin/main
+
+      - name: Push changes
+        run: |
+          git push origin main
 
   sync:
     needs: discover
+
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
+
     steps:
-      - name: Checkout repo (latest main, including new stubs)
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - name: Sync Notion content into stub files
         uses: YouXam/Notion-GitHub-Sync@v2
         with:
           notion_token: ${{ secrets.NOTION_TOKEN }}
-          subdir: true   # notion/{page_id}/index.md 형태로 저장
+          subdir: true
