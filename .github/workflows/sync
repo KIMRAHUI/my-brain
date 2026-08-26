@@ -36,7 +36,7 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/generate_md_stubs.py
 
-      - name: Commit new stub files
+- name: Commit and push new stub files
         run: |
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
@@ -47,6 +47,14 @@ jobs:
             echo "No new stubs to commit"
             exit 0
           fi
+
+          git commit -m "chore: add new notion page stubs"
+
+          # 원격 저장소의 최신 변경 사항을 먼저 반영 (rebase)
+          git pull origin main --rebase || git pull origin HEAD --rebase
+
+          # 푸시
+          git push origin main
 
           git commit -m "chore: add new notion page stubs"
 
