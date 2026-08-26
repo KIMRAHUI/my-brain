@@ -2,19 +2,26 @@ name: sync-notion-to-github
 
 on:
   schedule:
-    - cron: '0 0 * * *'   # 매일 00:00 UTC 자동 동기화
-  workflow_dispatch:        # Actions 탭에서 수동 실행 버튼
-  push:
-    branches: [main]
+    - cron: '0 0 * * *' # 매일 00:00 UTC 자동 동기화
+  workflow_dispatch: # Actions 탭에서 수동 실행
+
+# 같은 Notion 동기화 작업이 동시에 실행되지 않도록 방지
+concurrency:
+  group: notion-sync
+  cancel-in-progress: false
 
 jobs:
   discover:
     runs-on: ubuntu-latest
+
     permissions:
-      contents: write        # git push 권한 부여
+      contents: write
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,31 +40,35 @@ jobs:
         run: |
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
-          
-          # [핵심 충돌 방지 안전장치] 커밋 전 원격 저장소의 최신 내역을 먼저 안전하게 Rebase
-          git fetch origin main
-          git rebase origin/main || git rebase --abort
-          
-          # 스텁 파일 변경 사항 감지 및 커밋
+
           git add notion/
-          git commit -m "chore: add new notion page stubs" || echo "No new stubs to commit"
-          
-          # 충돌 없는 상태에서 안전하게 푸시
-          git push
+
+          # 변경사항이 없으면 정상 종료
+          if git diff --cached --quiet; then
+            echo "No new stubs to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: add new notion page stubs"
+          git push origin main
 
   sync:
     needs: discover
+
     runs-on: ubuntu-latest
+
     permissions:
-      contents: write        # Notion-GitHub-Sync 액션도 커밋/푸시하므로 필요
+      contents: write
+
     steps:
-      - name: Checkout repo (latest main, including new stubs)
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - name: Sync Notion content into stub files
         uses: YouXam/Notion-GitHub-Sync@v2
         with:
           notion_token: ${{ secrets.NOTION_TOKEN }}
-          subdir: true   # notion/{page_id}/index.md 형태로 저장
+          subdir: true
