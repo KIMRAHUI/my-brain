@@ -22,20 +22,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install notion-client
-
-      - name: Generate empty md stubs for new Notion pages
-        env:
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-        run: python scripts/generate_md_stubs.py
-
-      - name: Sync Notion content and push changes
+      - name: Sync Notion content into repository
         uses: YouXam/Notion-GitHub-Sync@v2
         with:
           notion_token: ${{ secrets.NOTION_TOKEN }}
