@@ -35,7 +35,7 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/generate_md_stubs.py
 
-      - name: Commit and push new stub files
+    - name: Commit and push new stub files
         run: |
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
@@ -49,8 +49,11 @@ jobs:
 
           git commit -m "chore: add new notion page stubs"
 
-          # [핵심] 원격 저장소의 최신 내용을 먼저 병합하고 푸시합니다.
-          git pull origin main --rebase
+          # [변경] pull 대신 fetch 후 rebase를 안전하게 수행
+          git fetch origin main
+          git rebase origin/main || git rebase --abort
+
+          # 강제성 있는 인증 포함 푸시
           git push origin main
 
   sync:
