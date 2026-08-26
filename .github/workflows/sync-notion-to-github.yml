@@ -48,8 +48,6 @@ jobs:
           fi
 
           git commit -m "chore: add new notion page stubs"
-
-          # [해결 코드] 원격 최신 상태를 먼저 반영한 뒤 푸시
           git fetch origin main
           git rebase origin/main || git rebase --abort
           git push origin main
@@ -68,6 +66,13 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+
+      # [핵심 추가] 외부 액션이 돌기 전에 원격 최신 변경사항을 미리 동기화해 둡니다.
+      - name: Pull latest changes before sync
+        run: |
+          git config user.name "notion-bot"
+          git config user.email "bot@example.com"
+          git pull origin main --rebase || true
 
       - name: Sync Notion content into stub files
         uses: YouXam/Notion-GitHub-Sync@v2
