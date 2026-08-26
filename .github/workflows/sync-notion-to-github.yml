@@ -2,15 +2,15 @@ name: sync-notion-to-github
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 매일 00:00 UTC 자동 동기화
-  workflow_dispatch: # Actions 탭에서 수동 실행
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 concurrency:
   group: notion-sync
   cancel-in-progress: false
 
 jobs:
-  discover:
+  sync:
     runs-on: ubuntu-latest
 
     permissions:
@@ -35,46 +35,7 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: python scripts/generate_md_stubs.py
 
-      - name: Commit and push new stub files
-        run: |
-          git config user.name "notion-bot"
-          git config user.email "bot@example.com"
-
-          git add notion/
-
-          if git diff --cached --quiet; then
-            echo "No new stubs to commit"
-            exit 0
-          fi
-
-          git commit -m "chore: add new notion page stubs"
-          git fetch origin main
-          git rebase origin/main || git rebase --abort
-          git push origin main
-
-  sync:
-    needs: discover
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      # [핵심 추가] 외부 액션이 돌기 전에 원격 최신 변경사항을 미리 동기화해 둡니다.
-      - name: Pull latest changes before sync
-        run: |
-          git config user.name "notion-bot"
-          git config user.email "bot@example.com"
-          git pull origin main --rebase || true
-
-      - name: Sync Notion content into stub files
+      - name: Sync Notion content and push changes
         uses: YouXam/Notion-GitHub-Sync@v2
         with:
           notion_token: ${{ secrets.NOTION_TOKEN }}
