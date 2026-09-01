@@ -99,9 +99,7 @@ def upload_index_to_supabase():
 
 
 # -------------------------------------------------------------
-# 3. 인덱스 빌드 / 로딩
-#    (로컬에 없으면 Supabase Storage에서 먼저 복원 시도 → 그래도 없으면
-#     새로 임베딩해서 빌드 후 Supabase Storage에 백업)
+# 3. 인덱스 빌드 / 로딩 함수 정의
 # -------------------------------------------------------------
 
 @st.cache_resource
@@ -135,8 +133,6 @@ def load_or_build_index():
             shutil.rmtree(PERSIST_DIR, ignore_errors=True)
 
     # 최초 빌드: 문서를 하나씩 순차적으로 삽입하면서 매번 로컬+Supabase에 저장.
-    # 중간에 할당량 초과가 나도 이미 처리된 문서는 안전하게 보존되고,
-    # 다음 재시도(또는 재시작) 때 refresh_ref_docs가 이어서 처리합니다.
     index = VectorStoreIndex.from_documents([])
 
     total = len(documents)
@@ -162,12 +158,10 @@ def load_or_build_index():
                     )
                     time.sleep(wait_seconds)
                     continue
-                # 재시도로도 해결 안 되면, 지금까지 처리된 것만이라도 저장 후 에러 전달
                 index.storage_context.persist(persist_dir=PERSIST_DIR)
                 upload_index_to_supabase()
                 raise
 
-        # 문서 하나 끝날 때마다 즉시 저장 (진행상황 보존)
         index.storage_context.persist(persist_dir=PERSIST_DIR)
         upload_index_to_supabase()
 
@@ -178,22 +172,6 @@ def load_or_build_index():
 
     progress_bar.empty()
     return index
-
-
-try:
-    with st.spinner("지식 베이스 엔진 로딩 중..."):
-        index = load_or_build_index()
-except Exception as e:
-    if "RESOURCE_EXHAUSTED" in str(e):
-        st.error(
-            "Gemini 임베딩 API 할당량을 초과했습니다.\n\n"
-            "지금까지 처리된 문서는 안전하게 저장되었으니, "
-            "잠시 후(할당량 리셋 이후) 페이지를 새로고침하면 "
-            "이어서 진행됩니다."
-        )
-    else:
-        st.error(f"인덱스 로딩 중 오류가 발생했습니다.\n\n`{e}`")
-    st.stop()
 
 
 qa_prompt = PromptTemplate(
@@ -214,11 +192,6 @@ qa_prompt = PromptTemplate(
     4. 사용자가 예제 코드나 구현을 요청하면 실제로 실행 가능한 예제를 명확하게 작성해 주세요.
     5. 필요한 경우 참고 자료의 내용과 일반 지식을 자연스럽게 조합해서 설명해 주세요.
     """
-)
-
-query_engine = index.as_query_engine(
-    similarity_top_k=3,
-    text_qa_template=qa_prompt,
 )
 
 
@@ -274,7 +247,6 @@ def db_update_session_title(chat_id: str, title: str):
 
 
 def db_delete_session(chat_id: str):
-    # qa_pairs는 FK ON DELETE CASCADE로 함께 삭제됨
     supabase.table("chat_sessions").delete().eq("id", chat_id).execute()
 
 
@@ -411,7 +383,7 @@ if (
 # -------------------------------------------------------------
 
 with st.sidebar:
-    st.markdown("### 지식 RAG 비서")
+    st.markdown("### STUDY")
 
     if st.button("새 대화 시작하기", type="primary"):
         new_chat_id = str(uuid.uuid4())
@@ -446,7 +418,7 @@ with st.sidebar:
             if st.button(
                 "X", key=f"del_chat_{c_id}", help="이 대화방 삭제"
             ):
-                db_delete_session(c_id)  # Supabase에서도 삭제 (연쇄 삭제)
+                db_delete_session(c_id)
                 del st.session_state.chat_sessions[c_id]
 
                 if st.session_state.chat_sessions:
@@ -462,34 +434,39 @@ with st.sidebar:
     st.subheader("고정된 핵심 노트")
 
     all_pinned_items = []
-    for session_data in st.session_state.chat_sessions.values():
+    for c_id, session_data in st.session_state.chat_sessions.items():
         for q_item in session_data["qa_pairs"]:
             if q_item.get("pinned", False):
-                all_pinned_items.append(q_item)
+                all_pinned_items.append({"chat_id": c_id, **q_item})
 
     if not all_pinned_items:
         st.caption("고정된 대화가 없습니다.")
     else:
         for p_qa in all_pinned_items:
             with st.container(border=True):
-                st.caption(f"Q. {p_qa['question']}")
-                st.write(
-                    p_qa["answer"][:40] + "..."
-                    if len(p_qa["answer"]) > 40
-                    else p_qa["answer"]
+                ans_text = p_qa["answer"].strip().split("\n")[0]
+                thumbnail_text = (
+                    ans_text[:30] + "..." if len(ans_text) > 30 else ans_text
                 )
+
+                st.caption(f"Q. {p_qa['question']}")
+                if st.button(
+                    f"📌 {thumbnail_text}",
+                    key=f"goto_pin_{p_qa['chat_id']}_{p_qa['db_id']}",
+                    use_container_width=True,
+                ):
+                    st.session_state.current_chat_id = p_qa["chat_id"]
+                    st.rerun()
 
     st.markdown("---")
     st.subheader("시스템 관리")
 
     if st.button("새 문서 확인 및 반영"):
-        # 로컬/Supabase 백업은 그대로 두고, 캐시만 비워서
-        # load_or_build_index()가 다시 실행되며 새/변경 문서만 증분 반영합니다.
         st.cache_resource.clear()
         st.rerun()
 
     with st.expander("⚠️ 전체 재빌드 (문제 있을 때만)"):
-        st.caption("모델을 바꿨거나 인덱스가 꼬였을 때만 사용하세요. 노션 문서 전체를 다시 임베딩해 API 할당량을 많이 씁니다.")
+        st.caption("모델을 바꿨거나 인덱스가 꼬였을 때만 사용하세요. 노션 문서 전체를 다시 임베딩해 API 할당량이 많이 씁니다.")
         if st.button("전체 인덱스 새로 만들기", type="secondary"):
             if os.path.exists(PERSIST_DIR):
                 shutil.rmtree(PERSIST_DIR)
@@ -506,7 +483,32 @@ with st.sidebar:
 
 
 # -------------------------------------------------------------
-# 9. 현재 채팅 (대화방이 하나도 없을 수 있음)
+# 9. 인덱스 로딩 (엔진 로딩 스피너 위치를 아래로 이동)
+# -------------------------------------------------------------
+
+try:
+    with st.spinner("지식 베이스 엔진 로딩 중..."):
+        index = load_or_build_index()
+except Exception as e:
+    if "RESOURCE_EXHAUSTED" in str(e):
+        st.error(
+            "Gemini 임베딩 API 할당량을 초과했습니다.\n\n"
+            "지금까지 처리된 문서는 안전하게 저장되었으니, "
+            "잠시 후(할당량 리셋 이후) 페이지를 새로고침하면 "
+            "이어서 진행됩니다."
+        )
+    else:
+        st.error(f"인덱스 로딩 중 오류가 발생했습니다.\n\n`{e}`")
+    st.stop()
+
+query_engine = index.as_query_engine(
+    similarity_top_k=3,
+    text_qa_template=qa_prompt,
+)
+
+
+# -------------------------------------------------------------
+# 10. 현재 채팅 (대화방이 하나도 없을 수 있음)
 # -------------------------------------------------------------
 
 if not st.session_state.chat_sessions:
@@ -519,7 +521,7 @@ current_qa_pairs = st.session_state.chat_sessions[
 
 
 # -------------------------------------------------------------
-# 10. Q&A 카드
+# 11. Q&A 카드
 # -------------------------------------------------------------
 
 for idx, qa in enumerate(current_qa_pairs):
@@ -541,7 +543,7 @@ for idx, qa in enumerate(current_qa_pairs):
             ):
                 new_pinned = not is_pinned
                 current_qa_pairs[idx]["pinned"] = new_pinned
-                db_update_pin(qa["db_id"], new_pinned)  # Supabase 반영
+                db_update_pin(qa["db_id"], new_pinned)
                 st.rerun()
 
         with b_col_del:
@@ -550,13 +552,13 @@ for idx, qa in enumerate(current_qa_pairs):
                 key=f"del_{st.session_state.current_chat_id}_{idx}",
                 use_container_width=True,
             ):
-                db_delete_qa(qa["db_id"])  # Supabase에서 삭제
+                db_delete_qa(qa["db_id"])
                 del current_qa_pairs[idx]
                 st.rerun()
 
 
 # -------------------------------------------------------------
-# 11. 사용자 질문
+# 12. 사용자 질문
 # -------------------------------------------------------------
 
 if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어보세요!"):
@@ -570,7 +572,7 @@ if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어�
         ]["title"] = short_title
         db_update_session_title(
             st.session_state.current_chat_id, short_title
-        )  # Supabase 반영
+        )
 
     with st.spinner("답변 생성 중..."):
         try:
@@ -588,7 +590,6 @@ if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어�
                     f"답변 생성 중 오류가 발생했습니다.\n\n`{error_message}`"
                 )
 
-    # Supabase에 저장하고, 반환된 id를 함께 session_state에 보관
     new_qa_id = db_insert_qa(
         st.session_state.current_chat_id, user_query, response
     )
