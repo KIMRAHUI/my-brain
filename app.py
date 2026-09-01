@@ -1,3 +1,8 @@
+사이드바 버튼 영역에서 긴 문장이 튀어나오는 문제를 해결하기 위해, 썸네일 텍스트를 깔끔한 해시태그 형식(`#`)으로 요약하고 글자 수를 제한하여 버튼 폭 안에 예쁘게 들어가도록 수정했습니다.
+
+전체 코드는 다음과 같습니다.
+
+```python
 import os
 import shutil
 import time
@@ -445,13 +450,14 @@ with st.sidebar:
         for p_qa in all_pinned_items:
             with st.container(border=True):
                 ans_text = p_qa["answer"].strip().split("\n")[0]
-                thumbnail_text = (
-                    ans_text[:30] + "..." if len(ans_text) > 30 else ans_text
-                )
+                clean_text = ans_text.replace("**", "").replace("*", "").replace("#", "").strip()
+                if len(clean_text) > 16:
+                    clean_text = clean_text[:16] + "..."
+                thumbnail_text = f"#{clean_text}"
 
                 st.caption(f"Q. {p_qa['question']}")
                 if st.button(
-                    f"📌 {thumbnail_text}",
+                    f"{thumbnail_text}",
                     key=f"goto_pin_{p_qa['chat_id']}_{p_qa['db_id']}",
                     use_container_width=True,
                 ):
@@ -604,3 +610,5 @@ if user_query := st.chat_input("공부한 내용에 대해 무엇이든 물어�
     )
 
     st.rerun()
+
+```
