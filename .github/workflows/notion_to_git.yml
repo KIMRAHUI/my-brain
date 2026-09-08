@@ -1,4 +1,4 @@
-name: sync-notion-to-github
+name: notion-to-git
 on:
   schedule:
     - cron: '0 0 * * *'    # 매일 00:00 UTC 자동 동기화
