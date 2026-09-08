@@ -7,13 +7,15 @@ on:
     branches: [main]
 
 jobs:
-  discover:
+  sync:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,35 +23,62 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install notion-client
+        run: pip install notion-client markdownify
 
-      - name: Generate empty md stubs for new Notion pages
+      - name: Sync Notion to Markdown with Titles
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-        run: python scripts/generate_md_stubs.py
+        run: |
+          python -c '
+          import os
+          from notion_client import Client
+          from markdownify import markdownify as md
 
-      - name: Commit new stub files
+          notion = Client(auth=os.environ["NOTION_TOKEN"])
+          os.makedirs("notion", exist_ok=True)
+
+          # 검색을 통해 워크스페이스 내 페이지 조회
+          results = notion.search().get("results", [])
+          
+          for page in results:
+              if page.get("object") == "page":
+                  page_id = page["id"]
+                  
+                  # 페이지 제목 추출
+                  props = page.get("properties", {})
+                  title = "Untitled"
+                  for prop_name, prop_val in props.items():
+                      if prop_val.get("type") == "title":
+                          title_arr = prop_val.get("title", [])
+                          if title_arr:
+                              title = "".join([t.get("plain_text", "") for t in title_arr])
+                  
+                  # 파일명으로 쓰기 부적절한 특수문자 제거
+                  safe_title = "".join(c for c in title if c.isalnum() or c in (" ", "-", "_")).strip()
+                  if not safe_title:
+                      safe_title = page_id
+                  
+                  # 블록(본문) 내용 가져오기
+                  blocks = notion.blocks.children.list(block_id=page_id).get("results", [])
+                  content = ""
+                  for block in blocks:
+                      # 간단하게 paragraph 블록 텍스트 추출 예시
+                      b_type = block.get("type")
+                      if b_type and "rich_text" in block[b_type]:
+                          texts = block[b_type]["rich_text"]
+                          content += "".join([t.get("plain_text", "") for t in texts]) + "\n\n"
+                  
+                  # notion/제목.md 파일로 저장
+                  file_path = os.path.join("notion", f"{safe_title}.md")
+                  with open(file_path, "w", encoding="utf-8") as f:
+                      f.write(f"# {title}\n\n{content}")
+          '
+
+      - name: Commit and push synchronized files
         run: |
           git config user.name "notion-bot"
           git config user.email "bot@example.com"
           git pull origin main --rebase || true
           git add notion/
-          git commit -m "chore: add new notion page stubs" || echo "No new stubs to commit"
+          git commit -m "feat: sync notion pages with clean titles" || echo "No changes to commit"
           git push
-
-  sync:
-    needs: discover
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repo (latest main, including new stubs)
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Sync Notion content into stub files
-        uses: YouXam/Notion-GitHub-Sync@v2
-        with:
-          notion_token: ${{ secrets.NOTION_TOKEN }}
-          subdir: true   # notion/{page_id}/index.md 형태로 저장
