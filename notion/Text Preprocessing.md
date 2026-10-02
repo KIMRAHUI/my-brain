@@ -5,6 +5,12 @@
 
 텍스트 전처리가 필요한 이유
 
+[코드]데이터 불러오기, 클렌징
+
+[코드]형태소 분석기
+
+[코드]바이트페어-서브워드추출
+
 Garbage In, Garbage Out (노이즈 제거 및 데이터 정합성 확보)
 
 크롤링, DB, API로 수집된 원천 데이터에는 HTML 태그, 무의미한 특수문자, 오탈자, 반복 자모음("ㅋㅋㅋㅋ") 등 다량의 노이즈 포함.
@@ -83,9 +89,17 @@ Embedding Vector: Feature Data 생성
 
 정수 데이터를 컴퓨터가 직접 연산 가능한 실수 행렬로 변환.
 
-희소 벡터화 (Sparse Vectorization):
 
-밀집 벡터화 (Dense Vectorization / Embedding):
+
+[코드]CountVectorizer 
+
+[코드]TF-IDF 벡터화
+
+[코드]텍스트 임베딩 
+
+[코드] FastText, Glove 단어 임베딩
+
+[코드] 문장 임베딩
 
 임베딩의 역할 (Embedding)
 
@@ -108,6 +122,14 @@ Embedding Vector: Feature Data 생성
 모델은 글자 자체가 아닌, 전처리를 거쳐 농축된 임베딩 벡터를 특성 데이터(X)로 삼아 손실(Loss)을 계산하고 오차역전파를 통해 가중치(Weight)를 업데이트함.
 
 전처리 파이프라인 단계별 비교
+
+Self Q&A
+
+
+
+
+
+
 
 
 
