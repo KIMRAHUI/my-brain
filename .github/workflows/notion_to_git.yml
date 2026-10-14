@@ -68,6 +68,10 @@ jobs:
                           texts = block[b_type]["rich_text"]
                           content += "".join([t.get("plain_text", "") for t in texts]) + "\n\n"
                   
+                  # 본문이 없는 페이지(목록만 있는 상위 폴더 페이지 등)는 건너뜀
+                  if not content.strip():
+                      continue
+
                   # notion/제목.md 파일로 저장
                   file_path = os.path.join("notion", f"{safe_title}.md")
                   with open(file_path, "w", encoding="utf-8") as f:
