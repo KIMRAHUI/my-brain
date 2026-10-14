@@ -80,7 +80,7 @@ print(f"[결과] 최종 사용 가능한 Train/Validation 이미지 수: {len(tr
 test_list = [name for name in df_test["Image"].tolist() if name in img_list]
 print(f"[결과] 최종 사용 가능한 Test 이미지 수: {len(test_list)}개")
 
-[개선] 학생 코드의 missing_xml = [image for image in trainval_list if image in xml_list]는 조건이 반대로 되어 있어 변수명·출력 문구와 실제 동작이 달랐습니다. 여기서는 not in으로 바로잡고, 강사 코드처럼 반대 방향(이미지 없는 XML)도 함께 점검하도록 했습니다.
+[개선] 내 코드의 missing_xml = [image for image in trainval_list if image in xml_list]는 조건이 반대로 되어 있어 변수명·출력 문구와 실제 동작이 달랐습니다. 여기서는 not in으로 바로잡고, baseline 코드처럼 반대 방향(이미지 없는 XML)도 함께 점검하도록 했습니다.
 
 🖼️ 3. XML 파싱 → annotations 구조화 + 시각화 검증
 
@@ -139,7 +139,7 @@ def visualize_sample(image_name, image_dir, annotations):
 for name in trainval_list[:3]:
     visualize_sample(name, image_dir, annotations)
 
-[계승] 강사 코드의 "전처리 직후 시각화로 검증" 습관을 그대로 가져왔습니다. annotation 파싱 로직에 버그가 있어도 눈으로 바로 확인할 수 있어 실무에서 매우 중요한 단계입니다.
+[계승] baseline 코드의 "전처리 직후 시각화로 검증" 습관을 그대로 가져왔습니다. annotation 파싱 로직에 버그가 있어도 눈으로 바로 확인할 수 있어 실무에서 매우 중요한 단계입니다.
 
 📦 4. Dataset 클래스 + Detection 전용 데이터 증강 + DataLoader
 
@@ -157,7 +157,7 @@ from sklearn.model_selection import train_test_split
 #   자체적으로 정규화(Normalize)를 수행합니다. Dataset 단계에서 ImageNet mean/std로
 #   한 번 더 Normalize를 적용하면 "이중 정규화"가 발생해 오히려 학습이 불안정해질
 #   수 있으므로, 여기서는 v2.ToDtype(scale=True)로 0~1 스케일만 맞추고
-#   Normalize는 의도적으로 생략합니다. (강사 코드는 이 부분을 명시적으로 적용했는데,
+#   Normalize는 의도적으로 생략합니다. (baseline 코드는 이 부분을 명시적으로 적용했는데,
 #   모델 기본 설정을 그대로 쓴다면 이중 정규화가 될 수 있어 재검토가 필요한 지점입니다.)
 # - torchvision 공식 detection 레퍼런스(references/detection)에서 SSD 학습 시
 #   사용하는 RandomPhotometricDistort / RandomZoomOut / RandomIoUCrop 조합을 그대로
@@ -276,7 +276,7 @@ test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False,
 
 print(f"Train: {len(train_dataset)} / Validation: {len(valid_dataset)} / Test: {len(test_dataset)}")
 
-[계승] 학생 코드의 "train_list/valid_list를 애초에 별도 Dataset으로 생성"하는 구조를 그대로 유지했습니다 (강사 코드의 random_split 후 transform 미분리 문제가 재현되지 않도록).
+[계승] 내 코드의 "train_list/valid_list를 애초에 별도 Dataset으로 생성"하는 구조를 그대로 유지했습니다 (baseline 코드의 random_split 후 transform 미분리 문제가 재현되지 않도록).
 [개선] 증강을 detection 전용 조합(RandomPhotometricDistort + RandomZoomOut + RandomIoUCrop + SanitizeBoundingBoxes)으로 업그레이드했습니다.
 
 📊 5. 평가지표 구현 (IoU / mAP)
@@ -347,7 +347,7 @@ def evaluate_model(predictions, ground_truths, classes, iou_threshold=0.5):
 
     return float(np.mean(class_aps)) if class_aps else 0.0
 
-[개선] 학생 코드는 if len(pred_boxes) == 0 or len(gt_boxes) == 0: continue로 되어 있어, GT가 없는 이미지에 모델이 잘못 예측(오탐)한 경우가 정밀도 계산에서 완전히 빠졌습니다. 이는 정밀도를 실제보다 좋게 보이도록 만드는 평가 버그입니다. 여기서는 그 경우를 False Positive로 명시적으로 채점에 포함하도록 고쳤습니다.
+[개선] 내 코드는 if len(pred_boxes) == 0 or len(gt_boxes) == 0: continue로 되어 있어, GT가 없는 이미지에 모델이 잘못 예측(오탐)한 경우가 정밀도 계산에서 완전히 빠졌습니다. 이는 정밀도를 실제보다 좋게 보이도록 만드는 평가 버그입니다. 여기서는 그 경우를 False Positive로 명시적으로 채점에 포함하도록 고쳤습니다.
 
 💾 6. 체크포인트 유틸(Latest + Best 분리 저장) & 학습 함수(AMP 지원)
 
@@ -486,8 +486,8 @@ def train_model(model, model_name, optimizer, lr_scheduler, num_epochs,
 
     return model, history
 
-[계승] 학생 코드의 체크포인트/재개 시스템(Colab 런타임 끊김 대비)을 골격으로 유지했습니다.
-[개선] _latest(재개용)와 _best(val mAP 기준 최고 성능, 최종 평가/배포용)를 분리 저장하도록 확장했고, patience(조기 종료)와 AMP(혼합정밀도)를 추가해 학습 시간을 단축했습니다. 강사 코드는 아예 이런 체크포인트 체계가 없어 70 epoch을 한 번에 완주해야만 했던 문제를 해결했습니다.
+[계승] 내 코드의 체크포인트/재개 시스템(Colab 런타임 끊김 대비)을 골격으로 유지했습니다.
+[개선] _latest(재개용)와 _best(val mAP 기준 최고 성능, 최종 평가/배포용)를 분리 저장하도록 확장했고, patience(조기 종료)와 AMP(혼합정밀도)를 추가해 학습 시간을 단축했습니다. baseline 코드는 아예 이런 체크포인트 체계가 없어 70 epoch을 한 번에 완주해야만 했던 문제를 해결했습니다.
 
 🚀 7. 모델 학습: 전이학습(Pretrained) vs 커스텀 베이스라인(Scratch)
 
@@ -543,7 +543,7 @@ model_scratch, history_scratch = train_model(
     classes=CLASSES, patience=5, use_amp=True,
 )
 
-[계승] 학생 코드의 "Pretrained vs Scratch" 실험 설계(전이학습 효과 자체를 검증)를 그대로 채택했습니다 — 강사 코드의 "Freeze vs Fine-tune"(둘 다 pretrained 시작점)보다 메시지가 더 명확합니다.
+[계승] 내 코드의 "Pretrained vs Scratch" 실험 설계(전이학습 효과 자체를 검증)를 그대로 채택했습니다 — baseline 코드의 "Freeze vs Fine-tune"(둘 다 pretrained 시작점)보다 메시지가 더 명확합니다.
 [개선] epoch 수를 5 → 30으로 늘리되 patience=5 Early Stopping을 걸어, 실제로 수렴할 때까지 학습하면서도 불필요한 낭비를 막도록 했습니다. torchinfo summary()를 실제로 호출해 두 모델의 구조·파라미터 수를 학습 전에 확인합니다.
 
 📈 8. 성능 비교 시각화 (Loss / mAP / IoU Threshold Sweep)
@@ -634,8 +634,8 @@ plt.grid(alpha=0.3)
 plt.show()
 print(pivot)
 
-[계승] 학생 코드의 IoU threshold sweep 아이디어를 그대로 채택했습니다. 강사 코드는 단일 IoU=0.5만 확인해 "박스를 대충 맞히는지, 정밀하게 맞히는지" 구분이 어려웠습니다.
-[수정] 그래프 제목의 백틱(`) 오타를 제거했습니다.
+[계승] 내 코드의 IoU threshold sweep 아이디어를 그대로 채택했습니다. baseline 코드는 단일 IoU=0.5만 확인해 "박스를 대충 맞히는지, 정밀하게 맞히는지" 구분이 어려웠습니다.
+[수정] 그래프 제목의 백틱(\`) 오타를 제거했습니다.
 
 🧪 9. Best 모델 확정 → 테스트 추론 + 오답 분석
 
@@ -765,7 +765,7 @@ print(f"탐색된 분류 오류 사례: {len(misclass_errors)}개")
 for img, pred, gt, err_type in misclass_errors:
     visualize_error_case(img, {k: v.cpu() for k, v in pred.items()}, gt, CLASSES, err_type)
 
-[계승] 학생 코드의 오답 분석(위치 오류/분류 오류 자동 분류) 로직을 그대로 유지했습니다 — 강사 코드에는 없는, mAP 숫자만으로는 알 수 없는 실패 패턴을 파고드는 매우 유용한 분석입니다.
+[계승] 내 코드의 오답 분석(위치 오류/분류 오류 자동 분류) 로직을 그대로 유지했습니다 — baseline 코드에는 없는, mAP 숫자만으로는 알 수 없는 실패 패턴을 파고드는 매우 유용한 분석입니다.
 [개선] 최종 추론에 학습이 끝난 시점의 가중치가 아니라, _best.pth(val mAP가 가장 높았던 epoch)를 명시적으로 다시 불러와 사용하도록 했습니다.
 
 📝 10. 최종 결론 및 재사용 체크리스트
