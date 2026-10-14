@@ -1,0 +1,18 @@
+# Streamlit secrets (API keys)
+.streamlit/secrets.toml
+
+# Local LlamaIndex index cache
+storage/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Env / OS / IDE
+.env
+.env.*
+.DS_Store
+.idea/
+.vscode/
