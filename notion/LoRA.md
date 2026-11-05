@@ -1,4 +1,4 @@
-# LoRA
+# 🔥LoRA
 
 import math
 import random
@@ -32,6 +32,7 @@ from Common_data import (
     MASK,
     itos
 )
+
 # ── LoRA: 동결된 기존 선형층 W0에 저랭크 업데이트 ΔW = scale × BA만 더한다 ──
 # 핵심 아이디어는 모든 가중치를 다시 학습시키지 않고, 원래 가중치 W0는 고정한 채
 # 작은 2개의 행렬 A, B만 학습해서 ΔW = s * B @ A 를 만들자는 것이다.
@@ -136,7 +137,6 @@ print(f'초기 |dA| = {lora.A.grad.norm().item():.4f} (0!),  |dB| = {lora.B.grad
 - 반면B에 대한 기울기(`dB`)는 A와 입력값 x의 곱(`x @ A.t()`)이 살아있기 때문에 0이 아닌 정상적인 기울기가 확인된다.
 """
 
-
 class MultiHeadAttention(nn.Module):
     def __init__(self, D: int, H: int) -> None:
         super().__init__()
@@ -218,7 +218,6 @@ MLM 사전학습 step 150 loss 0.340
 MLM 사전학습 step 200 loss 0.594
 MLM 사전학습 step 250 loss 0.286
 """
-
 
 # ── ② 다운스트림 분류: 문장 → 이야기 속 몇 번째 문장인가(4-class), 소량 라벨(40개)만 사용 ──
 """
@@ -304,7 +303,6 @@ freeze_top1   156420    50244  32.12        100488     0.21     201.8   1.0000  
        lora   159492     3332   2.09          6664     0.28      17.5   1.0000       1.0000
 """
 
-
 m = models['lora']; m.eval()
 x = pad_batch([c[0] for c in val_set[:32]]).to(device)   # ← pad_batch: 길이가 다른 리스트들 → PAD(0)로 채워 (B, L) 텐서
 with torch.no_grad(): before = m(x)
@@ -340,12 +338,10 @@ merge 후 로짓 동일: True | max diff 1.9073486328125e-06
 LoRA 어댑터 텐서 수: 12 (레이어 3개 × {wq, wv} × {A, B} = 12)
 """
 
-
-
 # !pip install -q "transformers" "peft" "datasets" "accelerate" "evaluate" "scikit-learn"
 # 선택 실습: 이 아래는 외부 모델 다운로드가 필요한 Hugging Face/PEFT 예시다.
 # 현재 토이 실습 실행을 막지 않도록 문자열로 보관한다. 필요하면 별도 노트북 셀에서 꺼내 실행한다.
-"""
+
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments, DataCollatorWithPadding
 from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 
@@ -374,7 +370,7 @@ args = TrainingArguments(output_dir='lora_out', per_device_train_batch_size=16, 
 # trainer.train()
 # model.save_pretrained('lora_adapter') # 어댑터(+헤드)만 저장 → 수 MB
 # merged = PeftModel.from_pretrained(AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=3), 'lora_adapter').merge_and_unload()
-"""
+
 """
 save_pretrained & merge_and_unload
 - `model.save_pretrained('lora_adapter')`:

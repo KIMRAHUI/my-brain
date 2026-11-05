@@ -1,4 +1,4 @@
-# ATTENTION
+# 🔥ATTENTION
 
 import math
 import random
@@ -21,7 +21,6 @@ from Common_data import (
     pad_batch,       # 길이가 다른 문장들을 PAD로 채워 하나의 텐서로 변환
     TOPIC_NAMES      # ['공부', '운동', '요리', '여행']
 )
-
 
 class BiLSTMWithAttention(nn.Module):
     # 파이토치 신경망 모듈(nn.Module)기본설정 불러오기
@@ -235,7 +234,6 @@ for sent in ['지수는 숨이 차서 잠시 물을 마셨다', '하나는 시�
    샀다       0.184 ███████
 """
 
-
 #scaled dot product attention : Transformer's attention
 def scaled_dot_product_attention(q:torch.Tensor,k:torch.Tensor,v:torch.Tensor,mask:torch.Tensor | None = None) -> tuple[torch.Tensor,torch.Tensor]:
     dk = q.size(-1)
@@ -369,7 +367,6 @@ torch.allclose(...,atol=1e-5) : 내가 만든 모델의 출력값 my_out과 공�
 어텐션맵 일치: True | shape (2, 4, 6, 6) = (B, heads, Tq, Tk)
 """
 
-
 # PyTorch가 자동으로 backward를 계산하지 않고,
 # Scaled Dot-Product Attention의 미분 공식을 직접 구현한 함수
 class ManualAttentionFn(torch.autograd.Function):
@@ -442,8 +439,6 @@ class ManualAttentionFn(torch.autograd.Function):
         # forward 입력은 q, k, v, mask 총 4개였으므로 gradient도 4개 반환
         # mask는 학습할 값이 아니므로 gradient가 없어 None 반환
         return dQ, dK, dV, None
-
-
 
 # ── 직접 구현한 backward가 PyTorch autograd의 결과와 같은지 검증 ──
 
@@ -525,7 +520,6 @@ print(
 )
 #참고로 “첫 query의 gradient가 0”인 이유는 볼 수 있는 key가 자기 자신 하나뿐이라 softmax 결과가 항상 `1`이고, Q·K 점수가 바뀌어도 attention 가중치가 바뀌지 않기 때문
 #두 번째 query 의 loss → key 별 기울기 크기: [0.018, 0.018, 0.0, 0.0, 0.0] (key 2~4 는 0)
-
 
 
 

@@ -1,4 +1,4 @@
-# Transform
+# 🔥Transform
 
 import math
 import random
@@ -120,6 +120,7 @@ class PositionalEncoding(nn.Module):
         transfomer는 순서 개념이 없기때문에 단어 의미 x에 위치 pe를 더해주는것
         """
         return x + self.pe[:, :x.size(1)]
+
 pe = PositionalEncoding(16,50).pe[0]
 #임베딩 차원16,최대길이50으로 positional Encoding객체를 만들고,
 # 그안의 pe 값 중 1번째 배치[0]을 꺼낸다.
@@ -275,7 +276,6 @@ class Transformer(nn.Module):
 m = Transformer(2, 64, 4, 128, V, V).to(device)
 print('파라미터 수:', sum(p.numel() for p in m.parameters())) #파라미터 수: 181127
 
-
 # seq 2 seq
 def make_pairs(stories: list[Story]) -> list[tuple[list[int], list[int]]]:
     pairs = []
@@ -304,8 +304,6 @@ src: 서아는 학교에서 영어를 공부했다
 tgt: 서아는 단어를 외우고 문제를 풀었다
 """
 
-
-
 def pair_batches(pairs: list[tuple[list[int], list[int]]], bs: int, shuffle: bool = True) -> Iterator[tuple[torch.Tensor, torch.Tensor]]:
     """
     Attention_prac의 batches함수가 거의 똑같지만, 입력 문장 c[0],c[1]과
@@ -318,8 +316,6 @@ def pair_batches(pairs: list[tuple[list[int], list[int]]], bs: int, shuffle: boo
     for i in range(0, len(idx), bs):
         ch = [pairs[j] for j in idx[i:i + bs]]
         yield pad_batch([c[0] for c in ch]).to(device), pad_batch([c[1] for c in ch]).to(device)   # ← pad_batch: 길이가 다른 리스트들 → PAD(0)로 채워 (B, L) 텐서
-
-
 
 def noam_lr(step: int, em_dim: int, warmup: int = 150, factor: float = 0.4) -> float:
     """
@@ -344,6 +340,7 @@ ignore_index = PAD : 문장 길이를 맞추기 위해 억지로 채워 넣은 �
 label_smooting=0.1 : 정답을 너무 꽉 막힌 1.0으로 학습 시키면, 모델이 지나치게 자신감(OverConfident)을 갖게 되므로,
                      약간의 여유(노이즈)를 주어 일반화 성능을 높여주는 기법
 """
+
 step, hist = 0, []
 for epoch in range(12):
     model.train(); tot, n = 0, 0

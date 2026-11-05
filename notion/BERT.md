@@ -1,4 +1,4 @@
-# BERT
+# 🔥BERT
 
 import math
 import random
@@ -30,6 +30,7 @@ from Common_data import (
     MASK,
     itos
 )
+
  # ── NSP: 실제 다음 문장(1:양성)과 다른 이야기의 문장(0:음성)을 구분하는 문장쌍 만들기 ──
 def build_nsp_pairs(stories: list[Story], seed: int = 0) -> list[tuple[str, str, int]]:
     """NSP용 문장쌍 생성: 실제 다음 문장은 1, 다른 이야기의 임의 문장은 0."""
@@ -99,8 +100,7 @@ print('ids \n', ids, '\nsegment \n', seg, '\nlabel', lab)
 ids shape: torch.Size([2, 13]) | label: tensor([1, 0])
 """
 
-
- # ── MLM: 특수 토큰을 제외한 단어 15%에만 80/10/10 규칙 적용 ──
+# ── MLM: 특수 토큰을 제외한 단어 15%에만 80/10/10 규칙 적용 ──
 def mask_tokens_for_mlm(input_ids: torch.Tensor, special_ids: list[int], mask_id: int, vocab_size: int, mlm_prob: float = 0.15) -> tuple[torch.Tensor, torch.Tensor]:
     """MLM 학습 입력과 정답 생성: 일반 토큰의 15%만 80/10/10 규칙으로 변경."""
     ids = input_ids.clone()
@@ -157,7 +157,6 @@ print('예시 원문:', decode(big[0].tolist())); print('예시 마스킹:', ' '
 예시 원문: 서아는 학교에서 영어를 공부했다 서아는 단어를 외우고 문제를 풀었다
 예시 마스킹: [CLS] 서아는 [MASK] 영어를 공부했다 [SEP] 서아는 단어를 외우고 문제를 풀었다 [SEP]
 """
-
 
 def scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]:
     scores = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(q.size(-1))
@@ -407,7 +406,6 @@ print(f"MLM(평가) loss {ev['mlm_loss']:.3f} | perplexity {ev['mlm_ppl']:.2f} |
 MLM(평가) loss 0.922 | perplexity 2.51 | top-1 0.774   (어휘 71개 무작위면 ppl=71)
 """
 
-
 def fill_mask(a: str, b: str, top: int = 3) -> list[tuple[str, float]]:
     """문장쌍에 있는 [MASK] 위치의 예측 단어와 확률 상위 top개를 반환한다."""
     ids, seg = encode_pair(a, b); ids_t = torch.tensor([ids]).to(device); seg_t = torch.tensor([seg]).to(device)
@@ -435,7 +433,6 @@ print(fill_mask('하나는 [MASK] 채소를 썰고 국을 끓였다', '하나는
 [('잠시', 0.633), ('커피를', 0.077), ('내어', 0.052)]
 [('집에서', 0.776), ('단어를', 0.034), ('채소를', 0.032)]
 """
-
 
 bert.eval()
 ids, seg, lab = [t.to(device) for t in collate(valid_pairs[:1])]
@@ -469,5 +466,6 @@ NSP(다음 문장 예측) 과제는 문장 맨 앞에 있는 [CLS] 토큰의 최
 """
 → 모든 위치(CLS 뿐 아니라 B 문장의 단어들까지)에 0 이 아닌 기울기: True
 """
+
 
 

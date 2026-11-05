@@ -1,4 +1,4 @@
-# GPT
+# 🔥GPT
 
 import math
 import random
@@ -284,7 +284,6 @@ def generate(model: nn.Module, idx: torch.Tensor, max_new_tokens: int, greedy: b
         """
     return idx
 
-
 prompt = torch.tensor([[BOS] + encode('지수는 숨이 차서')]).to(device) # ← encode: 문장(str) → 숫자 id 리스트
 #시작문장('지수는 숨이 차서')을 주고, 모델에게서 이어서 글을 써보라고 프롬프트를 던짐
 for name, kw in {'greedy': dict(greedy=True), 'T=1.0': dict(temperature=1.0), 'top-k=3': dict(top_k=3), 'top-p=0.9': dict(top_p=0.9, temperature=0.8)}.items():
@@ -294,7 +293,6 @@ for name, kw in {'greedy': dict(greedy=True), 'T=1.0': dict(temperature=1.0), 't
     decode(...)를 통해 생성된 숫자ID리스트를 사람이 읽을 수 있는 문장으로 변환하여 출력
     """
     torch.manual_seed(1); print(f'{name:<10}→', decode(generate(gpt, prompt, 18, **kw)[0].tolist()))   # ← decode: 숫자 id 리스트 → 문장(str)
-
 
 from collections import Counter
 def _ngrams(t: list[int], n: int) -> dict[tuple[int, ...], int]:
@@ -448,5 +446,6 @@ torch.allclose(...) 결과가 True
 GPT는 순서대로 글을 읽어 나갈 때 과거의 단어들이 미래를 볼 수는 있어도, 미래의 단어가 변한다고 해서 
 과거의 예측 결과가 소급해서 변하지 않는다는 시계열적 인과성(Causality)을 완벽하게 준수하고 있음을 직관적으로 보여줌
 """
+
 
 
